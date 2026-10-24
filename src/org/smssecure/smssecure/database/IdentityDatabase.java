@@ -36,7 +36,7 @@ import java.io.IOException;
 
 public class IdentityDatabase extends Database {
 
-  private static final Uri CHANGE_URI = Uri.parse("content://textsecure/identities");
+  private static final Uri CHANGE_URI = Uri.parse("content://org.smssecure.smssecure.database/identities");
 
   private static final String TABLE_NAME    = "identities";
   private static final String ID            = "_id";

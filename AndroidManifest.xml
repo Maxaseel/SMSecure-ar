@@ -382,6 +382,10 @@
     </receiver>
 
 
+    <provider android:name=".providers.DatabaseContentProvider"
+              android:authorities="org.smssecure.smssecure.database"
+              android:exported="false" />
+
     <provider android:name=".providers.PartProvider"
               android:grantUriPermissions="true"
               android:exported="false"

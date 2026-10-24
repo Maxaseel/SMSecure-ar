@@ -21,7 +21,7 @@ import java.util.Arrays;
 public class RecipientPreferenceDatabase extends Database {
 
   private static final String TAG = RecipientPreferenceDatabase.class.getSimpleName();
-  private static final String RECIPIENT_PREFERENCES_URI = "content://textsecure/recipients/";
+  private static final String RECIPIENT_PREFERENCES_URI = "content://org.smssecure.smssecure.database/recipients/";
 
   private static final String TABLE_NAME              = "recipient_preferences";
   private static final String ID                      = "_id";
