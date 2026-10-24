@@ -82,6 +82,13 @@
   <string name="ConversationActivity_transport_secure_mms">رسالة وسائط متعددة آمنة</string>
   <string name="ConversationActivity_install_smssecure">هيا نتحدث بشكلٍ آمن : %s</string>
   <string name="ConversationActivity_recipient_self">لا يمكن ربط الجلسات الآمنة إلا مع أشخاص آخَرين.</string>
+  <string name="ConversationActivity_search_messages">البحث في الرسائل</string>
+  <string name="ConversationActivity_search_messages_hint">اكتب كلمة أو عبارة للبحث</string>
+  <string name="ConversationActivity_searching_messages">جارٍ البحث في الرسائل…</string>
+  <string name="ConversationActivity_no_matching_messages">لا توجد رسائل مطابقة</string>
+  <string name="ConversationActivity_search_results">عدد النتائج: %1$d</string>
+  <string name="ConversationActivity_search_results_limited">عرض أحدث %1$d من أصل %2$d نتيجة</string>
+  <string name="ConversationActivity_message_search_failed">تعذر البحث. حاول مرة أخرى.</string>
   <string name="ConversationActivity_mms_not_supported_title">الرسائل المتعددة الوسائط غير مدعومة</string>
   <string name="ConversationActivity_specify_recipient">إختر مراسلاً من فضلك</string>
   <string name="ConversationActivity_attachment_exceeds_size_limits">لقد فاق حجم المرفق حد الحجم الأقصى.</string>

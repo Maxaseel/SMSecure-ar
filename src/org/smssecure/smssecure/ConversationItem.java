@@ -69,6 +69,7 @@ import org.smssecure.smssecure.recipients.Recipients;
 import org.smssecure.smssecure.util.DateUtils;
 import org.smssecure.smssecure.util.DynamicTheme;
 import org.smssecure.smssecure.util.SilencePreferences;
+import org.smssecure.smssecure.util.TextHighlighter;
 import org.smssecure.smssecure.util.Util;
 import org.smssecure.smssecure.util.dualsim.SubscriptionInfoCompat;
 import org.smssecure.smssecure.util.dualsim.SubscriptionManagerCompat;
@@ -240,6 +241,28 @@ public class ConversationItem extends LinearLayout
 
   public MessageRecord getMessageRecord() {
     return messageRecord;
+  }
+
+  public void setSearchQuery(@Nullable String query) {
+    if (messageRecord == null || bodyText == null || TextUtils.isEmpty(query)) return;
+
+    if (!isCaptionlessMms(messageRecord)) {
+      CharSequence visibleBody = messageRecord.getDisplayBody();
+      if (!messageRecord.isGroupUpdate() && !messageRecord.isGroupQuit() && !messageRecord.isMmsNotification() &&
+          !messageRecord.isProcessedKeyExchange() && !(messageRecord.isKeyExchange() && messageRecord.isOutgoing()))
+      {
+        String fullBody = AutoInitiate.stripTag(messageRecord.getBody().getBody());
+        if (TextHighlighter.indexOfIgnoreCase(visibleBody.toString(), query, 0) < 0 &&
+            TextHighlighter.indexOfIgnoreCase(fullBody, query, 0) >= 0)
+        {
+          visibleBody = fullBody;
+        }
+      }
+
+      bodyText.setText(visibleBody);
+      linkifyBodyText();
+      bodyText.setText(TextHighlighter.highlight(bodyText.getText(), query));
+    }
   }
 
   /// MessageRecord Attribute Parsers

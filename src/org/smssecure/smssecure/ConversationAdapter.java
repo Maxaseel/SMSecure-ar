@@ -95,6 +95,7 @@ public class ConversationAdapter <V extends View & BindableConversationItem>
   private final @NonNull  LayoutInflater    inflater;
   private final @NonNull  Calendar          calendar;
   private final @NonNull  MessageDigest     digest;
+  private       String                     searchQuery;
 
   protected static class ViewHolder extends RecyclerView.ViewHolder {
     public <V extends View & BindableConversationItem> ViewHolder(final @NonNull V itemView) {
@@ -183,7 +184,16 @@ public class ConversationAdapter <V extends View & BindableConversationItem>
     long          start         = System.currentTimeMillis();
     MessageRecord messageRecord = getMessageRecord(cursor);
 
-    viewHolder.getView().bind(masterSecret, messageRecord, locale, batchSelected, recipients);
+    BindableConversationItem item = viewHolder.getView();
+    item.bind(masterSecret, messageRecord, locale, batchSelected, recipients);
+    if (item instanceof ConversationItem) {
+      ((ConversationItem)item).setSearchQuery(searchQuery);
+    }
+  }
+
+  public void setSearchQuery(@Nullable String searchQuery) {
+    this.searchQuery = searchQuery;
+    notifyDataSetChanged();
   }
 
   @Override

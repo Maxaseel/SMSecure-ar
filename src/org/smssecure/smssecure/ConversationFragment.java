@@ -21,9 +21,11 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.database.Cursor;
+import android.graphics.Color;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.LoaderManager;
@@ -36,7 +38,14 @@ import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.RecyclerView.ItemAnimator.ItemAnimatorFinishedListener;
 import android.support.v7.widget.RecyclerView.OnScrollListener;
 import android.text.ClipboardManager;
+import android.text.Editable;
+import android.text.InputType;
+import android.text.Spannable;
+import android.text.SpannableStringBuilder;
 import android.text.TextUtils;
+import android.text.TextWatcher;
+import android.text.format.DateFormat;
+import android.text.style.ForegroundColorSpan;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -46,10 +55,16 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.view.WindowManager;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.BaseAdapter;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.ListView;
+import android.widget.ProgressBar;
 
 import org.smssecure.smssecure.ConversationAdapter.HeaderViewHolder;
 import org.smssecure.smssecure.ConversationAdapter.ItemClickListener;
@@ -62,17 +77,21 @@ import org.smssecure.smssecure.database.model.MessageRecord;
 import org.smssecure.smssecure.mms.Slide;
 import org.smssecure.smssecure.recipients.RecipientFactory;
 import org.smssecure.smssecure.recipients.Recipients;
+import org.smssecure.smssecure.protocol.AutoInitiate;
 import org.smssecure.smssecure.sms.MessageSender;
 import org.smssecure.smssecure.util.SilencePreferences;
 import org.smssecure.smssecure.util.task.ProgressDialogAsyncTask;
 import org.smssecure.smssecure.util.SaveAttachmentTask;
 import org.smssecure.smssecure.util.SaveAttachmentTask.Attachment;
 import org.smssecure.smssecure.util.StickyHeaderDecoration;
+import org.smssecure.smssecure.util.TextHighlighter;
 import org.smssecure.smssecure.util.ViewUtil;
 import org.smssecure.smssecure.util.SilencePreferences;
 
 import java.util.Collections;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
@@ -103,6 +122,16 @@ public class ConversationFragment extends Fragment
   private View                        composeDivider;
   private View                        scrollToBottomButton;
   private TextView                    scrollDateHeader;
+  private final Handler               searchHandler = new Handler();
+  private AlertDialog                 searchDialog;
+  private EditText                    searchInput;
+  private TextView                    searchStatus;
+  private ProgressBar                 searchProgress;
+  private MessageSearchResultsAdapter searchResultsAdapter;
+  private AsyncTask<String, Void, SearchResponse> searchTask;
+  private Runnable                    pendingSearch;
+  private String                      activeSearchQuery = "";
+  private int                         pendingSearchPosition = -1;
 
   @Override
   public void onCreate(Bundle icicle) {
@@ -163,6 +192,14 @@ public class ConversationFragment extends Fragment
     if (list.getAdapter() != null) {
       list.getAdapter().notifyDataSetChanged();
     }
+  }
+
+  @Override
+  public void onDestroyView() {
+    if (pendingSearch != null) searchHandler.removeCallbacks(pendingSearch);
+    if (searchTask != null) searchTask.cancel(true);
+    if (searchDialog != null && searchDialog.isShowing()) searchDialog.dismiss();
+    super.onDestroyView();
   }
 
   public void onNewIntent() {
@@ -253,6 +290,292 @@ public class ConversationFragment extends Fragment
 
   public void scrollToBottom() {
     list.scrollToPosition(0);
+  }
+
+  public void showMessageSearch() {
+    if (getActivity() == null) return;
+
+    final Context context = getActivity();
+    final LinearLayout dialogContent = new LinearLayout(context);
+    dialogContent.setOrientation(LinearLayout.VERTICAL);
+    int padding = (int)(16 * context.getResources().getDisplayMetrics().density);
+    dialogContent.setPadding(padding, 0, padding, 0);
+
+    searchInput = new EditText(context);
+    searchInput.setSingleLine(true);
+    searchInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
+    searchInput.setHint(R.string.ConversationActivity_search_messages_hint);
+    dialogContent.addView(searchInput, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
+                                                                     LinearLayout.LayoutParams.WRAP_CONTENT));
+
+    LinearLayout statusRow = new LinearLayout(context);
+    statusRow.setOrientation(LinearLayout.HORIZONTAL);
+    statusRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
+
+    searchProgress = new ProgressBar(context);
+    searchProgress.setIndeterminate(true);
+    searchProgress.setVisibility(View.GONE);
+    statusRow.addView(searchProgress, new LinearLayout.LayoutParams(padding, padding));
+
+    searchStatus = new TextView(context);
+    searchStatus.setText(R.string.ConversationActivity_search_messages_hint);
+    searchStatus.setPadding(padding / 2, padding / 2, 0, padding / 2);
+    statusRow.addView(searchStatus, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+    dialogContent.addView(statusRow, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
+                                                                  LinearLayout.LayoutParams.WRAP_CONTENT));
+
+    ListView resultsList = new ListView(context);
+    searchResultsAdapter = new MessageSearchResultsAdapter(context);
+    resultsList.setAdapter(searchResultsAdapter);
+    dialogContent.addView(resultsList, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
+                                                                     (int)(360 * context.getResources().getDisplayMetrics().density)));
+
+    searchDialog = new AlertDialog.Builder(context)
+        .setTitle(R.string.ConversationActivity_search_messages)
+        .setView(dialogContent)
+        .setNegativeButton(android.R.string.cancel, null)
+        .create();
+
+    searchDialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
+      @Override
+      public void onDismiss(DialogInterface dialog) {
+        if (pendingSearch != null) searchHandler.removeCallbacks(pendingSearch);
+        pendingSearch = null;
+        if (searchTask != null) searchTask.cancel(true);
+        searchTask = null;
+        searchDialog = null;
+        searchInput = null;
+        searchStatus = null;
+        searchProgress = null;
+        searchResultsAdapter = null;
+      }
+    });
+
+    resultsList.setOnItemClickListener((parent, view, position, id) -> {
+      if (searchResultsAdapter == null || searchInput == null) return;
+      SearchResult result = searchResultsAdapter.getItem(position);
+      String query = searchInput.getText().toString().trim();
+      if (!TextUtils.isEmpty(query)) {
+        jumpToSearchResult(result, query);
+        searchDialog.dismiss();
+      }
+    });
+
+    searchInput.addTextChangedListener(new TextWatcher() {
+      @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+      @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+        queueMessageSearch(s.toString().trim());
+      }
+      @Override public void afterTextChanged(Editable s) {}
+    });
+
+    searchDialog.show();
+    if (searchDialog.getWindow() != null) {
+      searchDialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
+    }
+    searchInput.requestFocus();
+    if (!TextUtils.isEmpty(activeSearchQuery)) {
+      searchInput.setText(activeSearchQuery);
+      searchInput.setSelection(searchInput.length());
+    }
+  }
+
+  private void queueMessageSearch(final String query) {
+    if (pendingSearch != null) searchHandler.removeCallbacks(pendingSearch);
+    if (searchTask != null) searchTask.cancel(true);
+
+    if (TextUtils.isEmpty(query)) {
+      if (searchProgress != null) searchProgress.setVisibility(View.GONE);
+      if (searchStatus != null) searchStatus.setText(R.string.ConversationActivity_search_messages_hint);
+      if (searchResultsAdapter != null) searchResultsAdapter.setResults(query, Collections.<SearchResult>emptyList());
+      return;
+    }
+
+    if (searchProgress != null) searchProgress.setVisibility(View.VISIBLE);
+    if (searchStatus != null) searchStatus.setText(R.string.ConversationActivity_searching_messages);
+    pendingSearch = new Runnable() {
+      @Override public void run() {
+        startMessageSearch(query);
+      }
+    };
+    searchHandler.postDelayed(pendingSearch, 250);
+  }
+
+  private void startMessageSearch(final String query) {
+    if (getActivity() == null) return;
+
+    final Context context = getActivity().getApplicationContext();
+    final long searchThreadId = threadId;
+    final MasterSecret searchSecret = masterSecret;
+
+    searchTask = new AsyncTask<String, Void, SearchResponse>() {
+      @Override
+      protected SearchResponse doInBackground(String... queries) {
+        Cursor cursor = null;
+        MmsSmsDatabase.Reader reader = null;
+        List<SearchResult> results = new ArrayList<>();
+        int resultCount = 0;
+        int position = 0;
+
+        try {
+          MmsSmsDatabase database = DatabaseFactory.getMmsSmsDatabase(context);
+          cursor = database.getConversation(searchThreadId);
+          reader = database.readerFor(cursor, searchSecret);
+
+          MessageRecord record;
+          while (!isCancelled() && (record = reader.getNext()) != null) {
+            String body = getSearchableMessageText(record);
+            int match = TextHighlighter.indexOfIgnoreCase(body, queries[0], 0);
+
+            if (match >= 0) {
+              resultCount++;
+              if (results.size() < 500) {
+                int start = Math.max(0, match - 48);
+                int end = Math.min(body.length(), match + queries[0].length() + 80);
+                String excerpt = (start > 0 ? "…" : "") + body.substring(start, end) + (end < body.length() ? "…" : "");
+                results.add(new SearchResult(position, excerpt, record.getDateReceived()));
+              }
+            }
+
+            position++;
+          }
+
+          return new SearchResponse(results, resultCount, false);
+        } catch (Exception e) {
+          Log.w(TAG, "Unable to search conversation messages", e);
+          return new SearchResponse(results, resultCount, true);
+        } finally {
+          if (reader != null) reader.close();
+          else if (cursor != null) cursor.close();
+        }
+      }
+
+      @Override
+      protected void onPostExecute(SearchResponse response) {
+        if (searchDialog == null || !searchDialog.isShowing() || searchInput == null || searchStatus == null) return;
+
+        String currentQuery = searchInput.getText().toString().trim();
+        if (!query.equals(currentQuery)) return;
+
+        searchTask = null;
+        searchProgress.setVisibility(View.GONE);
+        searchResultsAdapter.setResults(query, response.results);
+
+        if (response.failed) {
+          searchStatus.setText(R.string.ConversationActivity_message_search_failed);
+        } else if (response.resultCount == 0) {
+          searchStatus.setText(R.string.ConversationActivity_no_matching_messages);
+        } else if (response.resultCount > response.results.size()) {
+          searchStatus.setText(getString(R.string.ConversationActivity_search_results_limited,
+                                         response.results.size(), response.resultCount));
+        } else {
+          searchStatus.setText(getString(R.string.ConversationActivity_search_results,
+                                         response.resultCount));
+        }
+      }
+    }.execute(query);
+  }
+
+  private void jumpToSearchResult(SearchResult result, String query) {
+    activeSearchQuery = query;
+    ConversationAdapter adapter = getListAdapter();
+    adapter.setSearchQuery(query);
+    Cursor currentCursor = adapter.getCursor();
+
+    if (currentCursor != null && result.position < currentCursor.getCount()) {
+      scrollToSearchPosition(result.position);
+    } else {
+      pendingSearchPosition = result.position;
+      Bundle args = new Bundle();
+      args.putLong("limit", 0);
+      getLoaderManager().restartLoader(0, args, this);
+    }
+  }
+
+  private static String getSearchableMessageText(MessageRecord record) {
+    if (record.isGroupUpdate() || record.isGroupQuit() || record.isMmsNotification() ||
+        record.isProcessedKeyExchange() || (record.isKeyExchange() && record.isOutgoing()))
+    {
+      return record.getDisplayBody().toString();
+    }
+
+    return AutoInitiate.stripTag(record.getBody().getBody());
+  }
+
+  private void scrollToSearchPosition(final int position) {
+    list.post(new Runnable() {
+      @Override public void run() {
+        Cursor cursor = getListAdapter().getCursor();
+        if (cursor == null || cursor.getCount() == 0) return;
+
+        int target = Math.min(Math.max(0, position), cursor.getCount() - 1);
+        ((LinearLayoutManager)list.getLayoutManager()).scrollToPositionWithOffset(target, list.getHeight() / 3);
+      }
+    });
+  }
+
+  private static class SearchResult {
+    private final int position;
+    private final String excerpt;
+    private final long dateReceived;
+
+    private SearchResult(int position, String excerpt, long dateReceived) {
+      this.position = position;
+      this.excerpt = excerpt;
+      this.dateReceived = dateReceived;
+    }
+  }
+
+  private static class SearchResponse {
+    private final List<SearchResult> results;
+    private final int resultCount;
+    private final boolean failed;
+
+    private SearchResponse(List<SearchResult> results, int resultCount, boolean failed) {
+      this.results = results;
+      this.resultCount = resultCount;
+      this.failed = failed;
+    }
+  }
+
+  private static class MessageSearchResultsAdapter extends BaseAdapter {
+    private final Context context;
+    private List<SearchResult> results = Collections.emptyList();
+    private String query = "";
+
+    private MessageSearchResultsAdapter(Context context) {
+      this.context = context;
+    }
+
+    private void setResults(String query, List<SearchResult> results) {
+      this.query = query;
+      this.results = results;
+      notifyDataSetChanged();
+    }
+
+    @Override public int getCount() { return results.size(); }
+    @Override public SearchResult getItem(int position) { return results.get(position); }
+    @Override public long getItemId(int position) { return results.get(position).position; }
+
+    @Override
+    public View getView(int position, View convertView, ViewGroup parent) {
+      TextView textView = convertView instanceof TextView ? (TextView)convertView : new TextView(context);
+      int padding = (int)(14 * context.getResources().getDisplayMetrics().density);
+      textView.setPadding(padding, padding, padding, padding);
+      textView.setTextSize(16);
+      textView.setMaxLines(4);
+      SearchResult result = getItem(position);
+      SpannableStringBuilder content = new SpannableStringBuilder(TextHighlighter.highlight(result.excerpt, query));
+      content.append('\n');
+      int dateStart = content.length();
+      Date date = new Date(result.dateReceived);
+      content.append(DateFormat.getDateFormat(context).format(date));
+      content.append(' ');
+      content.append(DateFormat.getTimeFormat(context).format(date));
+      content.setSpan(new ForegroundColorSpan(Color.GRAY), dateStart, content.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+      textView.setText(content);
+      return textView;
+    }
   }
 
   public void setLastSeen(long lastSeen) {
@@ -419,6 +742,7 @@ public class ConversationFragment extends Fragment
       }
 
       getListAdapter().changeCursor(cursor);
+      getListAdapter().setSearchQuery(TextUtils.isEmpty(activeSearchQuery) ? null : activeSearchQuery);
 
       int lastSeenPosition = getListAdapter().findLastSeenPosition(lastSeen);
 
@@ -429,6 +753,12 @@ public class ConversationFragment extends Fragment
 
       if (lastSeenPosition <= 0) {
         setLastSeen(0);
+      }
+
+      if (pendingSearchPosition >= 0) {
+        int targetPosition = pendingSearchPosition;
+        pendingSearchPosition = -1;
+        scrollToSearchPosition(targetPosition);
       }
     }
   }

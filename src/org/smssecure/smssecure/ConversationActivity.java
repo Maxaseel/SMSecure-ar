@@ -404,6 +404,7 @@ public class ConversationActivity extends PassphraseRequiredActionBarActivity
   public boolean onOptionsItemSelected(MenuItem item) {
     super.onOptionsItemSelected(item);
     switch (item.getItemId()) {
+    case R.id.menu_search_messages:                if (fragment != null) fragment.showMessageSearch(); return true;
     case R.id.menu_call:                          handleDial(getRecipients().getPrimaryRecipient()); return true;
     case R.id.menu_delete_conversation:           handleDeleteConversation();                        return true;
     case R.id.menu_archive_conversation:          handleArchiveConversation();                       return true;

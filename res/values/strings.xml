@@ -120,6 +120,13 @@
     <string name="ConversationActivity_transport_secure_mms">Secure MMS</string>
     <string name="ConversationActivity_install_smssecure">Let\'s chat securely: %s</string>
     <string name="ConversationActivity_recipient_self">Secure sessions can only be established with other people.</string>
+    <string name="ConversationActivity_search_messages">Search messages</string>
+    <string name="ConversationActivity_search_messages_hint">Type a word or phrase</string>
+    <string name="ConversationActivity_searching_messages">Searching messages…</string>
+    <string name="ConversationActivity_no_matching_messages">No matching messages</string>
+    <string name="ConversationActivity_search_results">Matches: %1$d</string>
+    <string name="ConversationActivity_search_results_limited">Showing latest %1$d of %2$d matches</string>
+    <string name="ConversationActivity_message_search_failed">Search failed. Please try again.</string>
     <string name="ConversationActivity_mms_not_supported_title">MMS not supported</string>
     <string name="ConversationActivity_mms_not_supported_message">This message cannot be sent since your carrier doesn\'t support MMS.</string>
     <string name="ConversationActivity_specify_recipient">Please choose a contact</string>
