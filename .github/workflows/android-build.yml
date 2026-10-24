@@ -37,7 +37,7 @@ jobs:
           test -x "$SDKMANAGER" || { echo "sdkmanager not found under $SDK_ROOT/cmdline-tools"; exit 1; }
           echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
-          yes | "$SDKMANAGER" --licenses
+          yes | "$SDKMANAGER" --licenses || true
           "$SDKMANAGER" --install 'platform-tools' 'platforms;android-36' 'build-tools;36.0.0'
 
       - name: Configure Android SDK path
