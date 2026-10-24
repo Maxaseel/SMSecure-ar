@@ -194,7 +194,8 @@ public abstract class PassphraseRequiredActionBarActivity extends BaseActionBarA
     };
 
     IntentFilter filter = new IntentFilter(KeyCachingService.CLEAR_KEY_EVENT);
-    registerReceiver(clearKeyReceiver, filter, KeyCachingService.KEY_PERMISSION, null);
+    org.smssecure.smssecure.util.ReceiverUtil.registerNotExported(this, clearKeyReceiver, filter,
+        KeyCachingService.KEY_PERMISSION, null);
   }
 
   private void removeClearKeyReceiver(Context context) {

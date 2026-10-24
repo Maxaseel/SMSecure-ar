@@ -111,8 +111,7 @@ public class NotificationState {
     intent.setData((Uri.parse("custom://"+System.currentTimeMillis())));
     intent.putExtra(MarkReadReceiver.THREAD_IDS_EXTRA, threadArray);
     intent.putExtra(MarkReadReceiver.NOTIFICATION_ID_EXTRA, notificationId);
-
-    return PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+    return PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
   }
 
   public PendingIntent getRemoteReplyIntent(Context context, Recipients recipients) {
@@ -123,8 +122,7 @@ public class NotificationState {
     intent.setData((Uri.parse("custom://"+System.currentTimeMillis())));
     intent.putExtra(RemoteReplyReceiver.RECIPIENT_IDS_EXTRA, recipients.getIds());
     intent.setPackage(context.getPackageName());
-
-    return PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+    return PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE);
   }
 
   public PendingIntent getAndroidAutoReplyIntent(Context context, Recipients recipients) {
@@ -137,8 +135,7 @@ public class NotificationState {
     intent.putExtra(AndroidAutoReplyReceiver.RECIPIENT_IDS_EXTRA, recipients.getIds());
     intent.putExtra(AndroidAutoReplyReceiver.THREAD_ID_EXTRA, (long)threads.toArray()[0]);
     intent.setPackage(context.getPackageName());
-
-    return PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+    return PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE);
   }
 
   public PendingIntent getAndroidAutoHeardIntent(Context context, int notificationId) {
@@ -156,8 +153,7 @@ public class NotificationState {
     intent.putExtra(AndroidAutoHeardReceiver.THREAD_IDS_EXTRA, threadArray);
     intent.putExtra(AndroidAutoHeardReceiver.NOTIFICATION_ID_EXTRA, notificationId);
     intent.setPackage(context.getPackageName());
-
-    return PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+    return PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
   }
 
   public PendingIntent getQuickReplyIntent(Context context, Recipients recipients) {
@@ -167,8 +163,7 @@ public class NotificationState {
     intent.putExtra(ConversationActivity.RECIPIENTS_EXTRA, recipients.getIds());
     intent.putExtra(ConversationActivity.THREAD_ID_EXTRA, (long)threads.toArray()[0]);
     intent.setData((Uri.parse("custom://"+System.currentTimeMillis())));
-
-    return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+    return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
   }
 
   public PendingIntent getDeleteIntent(Context context) {
@@ -186,8 +181,7 @@ public class NotificationState {
     intent.putExtra(DeleteNotificationReceiver.EXTRA_IDS, ids);
     intent.putExtra(DeleteNotificationReceiver.EXTRA_MMS, mms);
     intent.setData((Uri.parse("custom://"+System.currentTimeMillis())));
-
-    return PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+    return PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
   }
 
 

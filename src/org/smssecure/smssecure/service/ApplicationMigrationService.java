@@ -18,6 +18,7 @@ import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
 import org.smssecure.smssecure.ConversationListActivity;
+import org.smssecure.smssecure.notifications.NotificationChannels;
 import org.smssecure.smssecure.R;
 import org.smssecure.smssecure.crypto.MasterSecret;
 import org.smssecure.smssecure.database.SmsMigrator;
@@ -79,7 +80,7 @@ public class ApplicationMigrationService extends Service
     IntentFilter filter = new IntentFilter();
     filter.addAction(COMPLETED_ACTION);
 
-    registerReceiver(completedReceiver, filter);
+    org.smssecure.smssecure.util.ReceiverUtil.registerNotExported(this, completedReceiver, filter);
   }
 
   private void unregisterCompletedReceiver() {
@@ -126,7 +127,7 @@ public class ApplicationMigrationService extends Service
   }
 
   private NotificationCompat.Builder initializeBackgroundNotification() {
-    NotificationCompat.Builder builder = new NotificationCompat.Builder(this);
+    NotificationCompat.Builder builder = new NotificationCompat.Builder(this, NotificationChannels.BACKGROUND);
 
     builder.setSmallIcon(R.drawable.icon_notification);
     builder.setLargeIcon(BitmapFactory.decodeResource(getResources(), R.drawable.icon_notification));
@@ -134,7 +135,7 @@ public class ApplicationMigrationService extends Service
     builder.setContentText(getString(R.string.ApplicationMigrationService_import_in_progress));
     builder.setOngoing(true);
     builder.setProgress(100, 0, false);
-    builder.setContentIntent(PendingIntent.getActivity(this, 0, new Intent(this, ConversationListActivity.class), 0));
+    builder.setContentIntent(PendingIntent.getActivity(this, 0, new Intent(this, ConversationListActivity.class), PendingIntent.FLAG_IMMUTABLE));
 
     stopForeground(true);
     startForeground(4242, builder.build());
@@ -186,11 +187,11 @@ public class ApplicationMigrationService extends Service
   private static class CompletedReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
-      NotificationCompat.Builder builder = new NotificationCompat.Builder(context);
+      NotificationCompat.Builder builder = new NotificationCompat.Builder(context, NotificationChannels.BACKGROUND);
       builder.setSmallIcon(R.drawable.icon_notification);
       builder.setContentTitle(context.getString(R.string.ApplicationMigrationService_import_complete));
       builder.setContentText(context.getString(R.string.ApplicationMigrationService_system_database_import_is_complete));
-      builder.setContentIntent(PendingIntent.getActivity(context, 0, new Intent(context, ConversationListActivity.class), 0));
+      builder.setContentIntent(PendingIntent.getActivity(context, 0, new Intent(context, ConversationListActivity.class), PendingIntent.FLAG_IMMUTABLE));
       builder.setWhen(System.currentTimeMillis());
       builder.setDefaults(Notification.DEFAULT_VIBRATE);
       builder.setAutoCancel(true);

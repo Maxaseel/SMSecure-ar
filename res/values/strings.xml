@@ -127,11 +127,25 @@
     <string name="ConversationActivity_search_results">Matches: %1$d</string>
     <string name="ConversationActivity_search_results_limited">Showing latest %1$d of %2$d matches</string>
     <string name="ConversationActivity_message_search_failed">Search failed. Please try again.</string>
+    <string name="conversation__menu_pin_conversation">Pin conversation</string>
+    <string name="conversation__menu_unpin_conversation">Unpin conversation</string>
+    <string name="notification_channel_messages">Messages</string>
+    <string name="notification_channel_security">Security and privacy</string>
+    <string name="notification_channel_background">Background tasks</string>
+    <string name="foreground_service_special_use_description">Keep the encryption key available for secure message notifications while the user is signed in.</string>
     <string name="ConversationActivity_mms_not_supported_title">MMS not supported</string>
     <string name="ConversationActivity_mms_not_supported_message">This message cannot be sent since your carrier doesn\'t support MMS.</string>
     <string name="ConversationActivity_specify_recipient">Please choose a contact</string>
     <string name="ConversationActivity_attachment_exceeds_size_limits">Attachment exceeds size limits.</string>
     <string name="ConversationActivity_silence_needs_sms_permission_in_order_to_send_an_sms">Silence needs SMS permission in order to send an SMS, but it has been permanently denied. Please continue to app settings, select \"Permissions\" and enable \"SMS\".</string>
+
+    <string name="conversation_list__menu_build_message_index">Build secure message index</string>
+    <string name="conversation_list__menu_update_message_index">Update secure message index</string>
+    <string name="message_index_title">Preparing secure search</string>
+    <string name="message_index_progress">Indexed %1$d of %2$d conversations (%3$d messages)</string>
+    <string name="message_index_complete">Search index ready: %1$d messages across %2$d conversations</string>
+    <string name="message_index_partial">Indexing stopped. %1$d conversations were completed.</string>
+    <string name="message_index_failed">Some conversations could not be indexed (%1$d).</string>
 
     <!-- ConversationAdapter -->
     <plurals name="ConversationAdapter_n_unread_messages">

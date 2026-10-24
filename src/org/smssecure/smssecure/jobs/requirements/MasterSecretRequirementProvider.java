@@ -26,7 +26,8 @@ public class MasterSecretRequirementProvider implements RequirementProvider {
     };
 
     IntentFilter filter = new IntentFilter(KeyCachingService.NEW_KEY_EVENT);
-    context.registerReceiver(newKeyReceiver, filter, KeyCachingService.KEY_PERMISSION, null);
+    org.smssecure.smssecure.util.ReceiverUtil.registerNotExported(context, newKeyReceiver, filter,
+        KeyCachingService.KEY_PERMISSION, null);
   }
 
   @Override

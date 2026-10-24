@@ -70,6 +70,7 @@ import org.smssecure.smssecure.ConversationAdapter.HeaderViewHolder;
 import org.smssecure.smssecure.ConversationAdapter.ItemClickListener;
 import org.smssecure.smssecure.crypto.MasterSecret;
 import org.smssecure.smssecure.database.DatabaseFactory;
+import org.smssecure.smssecure.database.MessageSearchIndexDatabase;
 import org.smssecure.smssecure.database.MmsSmsDatabase;
 import org.smssecure.smssecure.database.loaders.ConversationLoader;
 import org.smssecure.smssecure.database.model.MediaMmsMessageRecord;
@@ -84,6 +85,7 @@ import org.smssecure.smssecure.util.task.ProgressDialogAsyncTask;
 import org.smssecure.smssecure.util.SaveAttachmentTask;
 import org.smssecure.smssecure.util.SaveAttachmentTask.Attachment;
 import org.smssecure.smssecure.util.StickyHeaderDecoration;
+import org.smssecure.smssecure.util.PersistentMessageSearchIndex;
 import org.smssecure.smssecure.util.TextHighlighter;
 import org.smssecure.smssecure.util.ViewUtil;
 import org.smssecure.smssecure.util.SilencePreferences;
@@ -132,6 +134,8 @@ public class ConversationFragment extends Fragment
   private Runnable                    pendingSearch;
   private String                      activeSearchQuery = "";
   private int                         pendingSearchPosition = -1;
+  private volatile List<PersistentMessageSearchIndex.Entry> cachedSearchIndex;
+  private volatile long               cachedSearchIndexGeneration = -1;
 
   @Override
   public void onCreate(Bundle icicle) {
@@ -199,6 +203,8 @@ public class ConversationFragment extends Fragment
     if (pendingSearch != null) searchHandler.removeCallbacks(pendingSearch);
     if (searchTask != null) searchTask.cancel(true);
     if (searchDialog != null && searchDialog.isShowing()) searchDialog.dismiss();
+    cachedSearchIndex = null;
+    cachedSearchIndexGeneration = -1;
     super.onDestroyView();
   }
 
@@ -284,6 +290,8 @@ public class ConversationFragment extends Fragment
 
     if (this.threadId != threadId) {
       this.threadId = threadId;
+      cachedSearchIndex = null;
+      cachedSearchIndexGeneration = -1;
       initializeListAdapter();
     }
   }
@@ -418,6 +426,41 @@ public class ConversationFragment extends Fragment
         int position = 0;
 
         try {
+          String query = queries[0];
+          MessageSearchIndexDatabase indexDatabase = DatabaseFactory.getMessageSearchIndexDatabase(context);
+          MessageSearchIndexDatabase.IndexRecord storedIndex = indexDatabase.getReadyIndex(searchThreadId);
+          ThreadDatabase.SearchMetadata metadata = DatabaseFactory.getThreadDatabase(context).getSearchMetadata(searchThreadId);
+          long generation = indexDatabase.getThreadGeneration(searchThreadId);
+
+          if (storedIndex != null && storedIndex.messageCount == metadata.messageCount &&
+              storedIndex.threadDate == metadata.threadDate)
+          {
+            List<PersistentMessageSearchIndex.Entry> entries;
+            boolean loaded = cachedSearchIndex != null && cachedSearchIndexGeneration == generation;
+            if (loaded) {
+              entries = cachedSearchIndex;
+            } else {
+              entries = PersistentMessageSearchIndex.decrypt(storedIndex.encryptedPayload, searchSecret);
+            }
+
+            for (PersistentMessageSearchIndex.Entry entry : entries) {
+              if (isCancelled()) break;
+              int match = TextHighlighter.indexOfIgnoreCase(entry.body, query, 0);
+              if (match >= 0) {
+                resultCount++;
+                if (results.size() < 500) {
+                  int start = Math.max(0, match - 48);
+                  int end = Math.min(entry.body.length(), match + query.length() + 80);
+                  String excerpt = (start > 0 ? "…" : "") + entry.body.substring(start, end) +
+                                   (end < entry.body.length() ? "…" : "");
+                  results.add(new SearchResult(entry.position, excerpt, entry.dateReceived));
+                }
+              }
+            }
+
+            return new SearchResponse(results, resultCount, false, loaded ? null : entries, generation);
+          }
+
           MmsSmsDatabase database = DatabaseFactory.getMmsSmsDatabase(context);
           cursor = database.getConversation(searchThreadId);
           reader = database.readerFor(cursor, searchSecret);
@@ -443,6 +486,11 @@ public class ConversationFragment extends Fragment
           return new SearchResponse(results, resultCount, false);
         } catch (Exception e) {
           Log.w(TAG, "Unable to search conversation messages", e);
+          try {
+            DatabaseFactory.getMessageSearchIndexDatabase(context).markDirty(searchThreadId);
+          } catch (Exception ignored) {
+            Log.w(TAG, "Unable to invalidate an unusable message index", ignored);
+          }
           return new SearchResponse(results, resultCount, true);
         } finally {
           if (reader != null) reader.close();
@@ -458,6 +506,10 @@ public class ConversationFragment extends Fragment
         if (!query.equals(currentQuery)) return;
 
         searchTask = null;
+        if (response.cacheEntries != null) {
+          cachedSearchIndex = response.cacheEntries;
+          cachedSearchIndexGeneration = response.cacheGeneration;
+        }
         searchProgress.setVisibility(View.GONE);
         searchResultsAdapter.setResults(query, response.results);
 
@@ -493,13 +545,7 @@ public class ConversationFragment extends Fragment
   }
 
   private static String getSearchableMessageText(MessageRecord record) {
-    if (record.isGroupUpdate() || record.isGroupQuit() || record.isMmsNotification() ||
-        record.isProcessedKeyExchange() || (record.isKeyExchange() && record.isOutgoing()))
-    {
-      return record.getDisplayBody().toString();
-    }
-
-    return AutoInitiate.stripTag(record.getBody().getBody());
+    return PersistentMessageSearchIndex.getSearchableText(record);
   }
 
   private void scrollToSearchPosition(final int position) {
@@ -530,11 +576,21 @@ public class ConversationFragment extends Fragment
     private final List<SearchResult> results;
     private final int resultCount;
     private final boolean failed;
+    private final List<PersistentMessageSearchIndex.Entry> cacheEntries;
+    private final long cacheGeneration;
 
     private SearchResponse(List<SearchResult> results, int resultCount, boolean failed) {
+      this(results, resultCount, failed, null, -1);
+    }
+
+    private SearchResponse(List<SearchResult> results, int resultCount, boolean failed,
+                           List<PersistentMessageSearchIndex.Entry> cacheEntries, long cacheGeneration)
+    {
       this.results = results;
       this.resultCount = resultCount;
       this.failed = failed;
+      this.cacheEntries = cacheEntries;
+      this.cacheGeneration = cacheGeneration;
     }
   }
 

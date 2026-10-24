@@ -26,6 +26,7 @@ import org.smssecure.smssecure.jobs.persistence.EncryptingJobSerializer;
 import org.smssecure.smssecure.jobs.requirements.MasterSecretRequirementProvider;
 import org.smssecure.smssecure.jobs.requirements.MediaNetworkRequirementProvider;
 import org.smssecure.smssecure.jobs.requirements.ServiceRequirementProvider;
+import org.smssecure.smssecure.notifications.NotificationChannels;
 import org.smssecure.smssecure.util.SilencePreferences;
 import org.smssecure.smssecure.util.dualsim.SimChangedReceiver;
 import org.whispersystems.jobqueue.JobManager;
@@ -61,6 +62,7 @@ public class ApplicationContext extends Application implements DependencyInjecto
   @Override
   public void onCreate() {
     super.onCreate();
+    NotificationChannels.create(this);
     initializeRandomNumberFix();
     initializeLogging();
     initializeJobManager();

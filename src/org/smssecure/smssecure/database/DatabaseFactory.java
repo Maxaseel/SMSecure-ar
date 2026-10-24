@@ -74,13 +74,14 @@ public class DatabaseFactory {
   private static final int INTRODUCED_SUBSCRIPTION_ID_VERSION              = 28;
   private static final int INTRODUCED_LAST_SEEN                            = 29;
   private static final int INTRODUCED_NOTIFIED                             = 30;
+  private static final int INTRODUCED_PINNED_SEARCH_INDEX                  = 31;
 
   /*
    * Yes, INTRODUCED_XMPP_TRANSPORT > DATABASE_VERSION to allow database
    * downgrade when XMPP transport will be included in unstable branch.
    */
-  private static final int INTRODUCED_XMPP_TRANSPORT                       = 31;
-  private static final int DATABASE_VERSION                                = 30;
+  private static final int INTRODUCED_XMPP_TRANSPORT                       = 32;
+  private static final int DATABASE_VERSION                                = 31;
 
   private static final String DATABASE_NAME    = "messages.db";
   private static final Object lock             = new Object();
@@ -95,6 +96,7 @@ public class DatabaseFactory {
   private final AttachmentDatabase attachments;
   private final ImageDatabase image;
   private final ThreadDatabase thread;
+  private final MessageSearchIndexDatabase messageSearchIndexDatabase;
   private final CanonicalAddressDatabase address;
   private final MmsAddressDatabase mmsAddress;
   private final MmsSmsDatabase mmsSmsDatabase;
@@ -118,6 +120,10 @@ public class DatabaseFactory {
 
   public static ThreadDatabase getThreadDatabase(Context context) {
     return getInstance(context).thread;
+  }
+
+  public static MessageSearchIndexDatabase getMessageSearchIndexDatabase(Context context) {
+    return getInstance(context).messageSearchIndexDatabase;
   }
 
   public static SmsDatabase getSmsDatabase(Context context) {
@@ -172,6 +178,7 @@ public class DatabaseFactory {
     this.attachments                 = new AttachmentDatabase(context, databaseHelper);
     this.image                       = new ImageDatabase(context, databaseHelper);
     this.thread                      = new ThreadDatabase(context, databaseHelper);
+    this.messageSearchIndexDatabase  = new MessageSearchIndexDatabase(context, databaseHelper);
     this.address                     = CanonicalAddressDatabase.getInstance(context);
     this.mmsAddress                  = new MmsAddressDatabase(context, databaseHelper);
     this.mmsSmsDatabase              = new MmsSmsDatabase(context, databaseHelper);
@@ -190,6 +197,7 @@ public class DatabaseFactory {
     this.mms.reset(databaseHelper);
     this.attachments.reset(databaseHelper);
     this.thread.reset(databaseHelper);
+    this.messageSearchIndexDatabase.reset(databaseHelper);
     this.mmsAddress.reset(databaseHelper);
     this.mmsSmsDatabase.reset(databaseHelper);
     this.identityDatabase.reset(databaseHelper);
@@ -227,6 +235,7 @@ public class DatabaseFactory {
       db.execSQL(MmsDatabase.CREATE_TABLE);
       db.execSQL(AttachmentDatabase.CREATE_TABLE);
       db.execSQL(ThreadDatabase.CREATE_TABLE);
+      db.execSQL(MessageSearchIndexDatabase.CREATE_TABLE);
       db.execSQL(MmsAddressDatabase.CREATE_TABLE);
       db.execSQL(IdentityDatabase.CREATE_TABLE);
       db.execSQL(DraftDatabase.CREATE_TABLE);
@@ -564,6 +573,12 @@ public class DatabaseFactory {
 
         db.execSQL("DROP INDEX mms_read_and_thread_id_index");
         db.execSQL("CREATE INDEX IF NOT EXISTS mms_read_and_notified_and_thread_id_index ON mms(read,notified,thread_id)");
+      }
+
+      if (oldVersion < INTRODUCED_PINNED_SEARCH_INDEX) {
+        db.execSQL("ALTER TABLE thread ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0");
+        db.execSQL(MessageSearchIndexDatabase.CREATE_TABLE);
+        db.execSQL("CREATE INDEX IF NOT EXISTS thread_pinned_date_index ON thread (pinned, date)");
       }
 
       db.setTransactionSuccessful();

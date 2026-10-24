@@ -43,11 +43,12 @@ public class ConversationListLoader extends AbstractCursorLoader {
           ThreadDatabase.ID, ThreadDatabase.DATE, ThreadDatabase.MESSAGE_COUNT,
           ThreadDatabase.RECIPIENT_IDS, ThreadDatabase.SNIPPET, ThreadDatabase.READ,
           ThreadDatabase.TYPE, ThreadDatabase.SNIPPET_TYPE, ThreadDatabase.SNIPPET_URI,
-          ThreadDatabase.ARCHIVED, ThreadDatabase.STATUS, ThreadDatabase.LAST_SEEN}, 1);
+          ThreadDatabase.ARCHIVED, ThreadDatabase.STATUS, ThreadDatabase.LAST_SEEN,
+          ThreadDatabase.PINNED}, 1);
 
       switchToArchiveCursor.addRow(new Object[] {-1L, System.currentTimeMillis(), archivedCount,
                                                  "-1", null, 1, ThreadDatabase.DistributionTypes.ARCHIVE,
-                                                 0, null, 0, -1, 0});
+                                                 0, null, 0, -1, 0, 0});
 
       cursorList.add(switchToArchiveCursor);
     }

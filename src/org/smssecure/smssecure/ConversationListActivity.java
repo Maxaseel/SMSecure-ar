@@ -17,12 +17,18 @@
 package org.smssecure.smssecure;
 
 import android.content.Intent;
+import android.content.DialogInterface;
+import android.Manifest;
 import android.database.ContentObserver;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.ContactsContract;
+import android.app.ProgressDialog;
+import android.content.pm.PackageManager;
 import android.support.annotation.NonNull;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.ActionBar;
 import android.support.v4.view.MenuItemCompat;
 import android.support.v7.widget.SearchView;
@@ -31,9 +37,11 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.SubMenu;
+import android.widget.Toast;
 
 import org.smssecure.smssecure.crypto.MasterSecret;
 import org.smssecure.smssecure.database.DatabaseFactory;
+import org.smssecure.smssecure.util.MessageSearchIndexer;
 import org.smssecure.smssecure.notifications.MessageNotifier;
 import org.smssecure.smssecure.recipients.RecipientFactory;
 import org.smssecure.smssecure.recipients.Recipients;
@@ -50,6 +58,7 @@ public class ConversationListActivity extends PassphraseRequiredActionBarActivit
     implements ConversationListFragment.ConversationSelectedListener
 {
   private static final String TAG = ConversationListActivity.class.getSimpleName();
+  private static final int REQUEST_POST_NOTIFICATIONS = 812;
 
   private final DynamicTheme    dynamicTheme    = new DynamicTheme   ();
   private final DynamicLanguage dynamicLanguage = new DynamicLanguage();
@@ -57,6 +66,9 @@ public class ConversationListActivity extends PassphraseRequiredActionBarActivit
   private ConversationListFragment fragment;
   private ContentObserver observer;
   private MasterSecret masterSecret;
+  private ProgressDialog messageIndexProgress;
+  private AsyncTask<Void, Integer, MessageSearchIndexer.IndexStats> messageIndexTask;
+  private volatile boolean messageIndexCancelRequested;
 
   private List<SubscriptionInfoCompat> activeSubscriptions;
 
@@ -83,10 +95,28 @@ public class ConversationListActivity extends PassphraseRequiredActionBarActivit
     super.onResume();
     dynamicTheme.onResume(this);
     dynamicLanguage.onResume(this);
+    requestNotificationPermissionIfNeeded();
+  }
+
+  private void requestNotificationPermissionIfNeeded() {
+    if (Build.VERSION.SDK_INT < 33 ||
+        ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED)
+    {
+      return;
+    }
+
+    android.content.SharedPreferences preferences = getPreferences(MODE_PRIVATE);
+    if (!preferences.getBoolean("asked_post_notifications", false)) {
+      preferences.edit().putBoolean("asked_post_notifications", true).apply();
+      ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.POST_NOTIFICATIONS},
+                                        REQUEST_POST_NOTIFICATIONS);
+    }
   }
 
   @Override
   public void onDestroy() {
+    if (messageIndexTask != null) messageIndexTask.cancel(true);
+    if (messageIndexProgress != null && messageIndexProgress.isShowing()) messageIndexProgress.dismiss();
     if (observer != null) getContentResolver().unregisterContentObserver(observer);
     super.onDestroy();
   }
@@ -105,6 +135,13 @@ public class ConversationListActivity extends PassphraseRequiredActionBarActivit
     inflater.inflate(R.menu.conversation_list, menu);
     MenuItem menuItem = menu.findItem(R.id.menu_search);
     initializeSearch(menuItem);
+    MenuItem indexItem = menu.findItem(R.id.menu_build_message_index);
+    if (indexItem != null) {
+      int indexedConversations = DatabaseFactory.getMessageSearchIndexDatabase(this).getReadyIndexCount();
+      indexItem.setTitle(indexedConversations > 0
+                         ? R.string.conversation_list__menu_update_message_index
+                         : R.string.conversation_list__menu_build_message_index);
+    }
 
     super.onPrepareOptionsMenu(menu);
     return true;
@@ -179,10 +216,98 @@ public class ConversationListActivity extends PassphraseRequiredActionBarActivit
     case R.id.menu_clear_passphrase:       handleClearPassphrase();        return true;
     case R.id.menu_mark_all_read:          handleMarkAllRead();            return true;
     case R.id.menu_import_export:          handleImportExport();           return true;
+    case R.id.menu_build_message_index:    handleBuildMessageIndex();      return true;
     case R.id.menu_my_identity:            handleMyIdentity();             return true;
     }
 
     return false;
+  }
+
+  private void handleBuildMessageIndex() {
+    if (messageIndexTask != null) return;
+    messageIndexCancelRequested = false;
+
+    messageIndexProgress = new ProgressDialog(this);
+    messageIndexProgress.setTitle(R.string.message_index_title);
+    messageIndexProgress.setMessage(getString(R.string.ConversationActivity_searching_messages));
+    messageIndexProgress.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+    messageIndexProgress.setIndeterminate(true);
+    messageIndexProgress.setCancelable(false);
+    messageIndexProgress.setButton(DialogInterface.BUTTON_NEGATIVE, getString(android.R.string.cancel),
+        new DialogInterface.OnClickListener() {
+          @Override public void onClick(DialogInterface dialog, int which) {
+            messageIndexCancelRequested = true;
+          }
+        });
+    messageIndexProgress.show();
+
+    final android.content.Context appContext = getApplicationContext();
+    final MasterSecret indexingSecret = masterSecret;
+    messageIndexTask = new AsyncTask<Void, Integer, MessageSearchIndexer.IndexStats>() {
+      @Override
+      protected MessageSearchIndexer.IndexStats doInBackground(Void... params) {
+        try {
+          return MessageSearchIndexer.indexAll(appContext, indexingSecret, new MessageSearchIndexer.ProgressListener() {
+            @Override public void onProgress(int completed, int total, int messages) {
+              publishProgress(completed, total, messages);
+            }
+
+            @Override public boolean isCancelled() {
+              return ConversationListActivity.this.messageIndexCancelRequested ||
+                     (ConversationListActivity.this.messageIndexTask != null &&
+                      ConversationListActivity.this.messageIndexTask.isCancelled());
+            }
+          });
+        } catch (Exception e) {
+          Log.w(TAG, "Unable to build the message search index", e);
+          return null;
+        }
+      }
+
+      @Override
+      protected void onProgressUpdate(Integer... values) {
+        if (messageIndexProgress == null || values.length < 3) return;
+        int completed = values[0];
+        int total = values[1];
+        int messages = values[2];
+        messageIndexProgress.setIndeterminate(total <= 0);
+        if (total > 0) {
+          messageIndexProgress.setMax(total);
+          messageIndexProgress.setProgress(completed);
+        }
+        messageIndexProgress.setMessage(getString(R.string.message_index_progress, completed, total, messages));
+      }
+
+      @Override
+      protected void onPostExecute(MessageSearchIndexer.IndexStats stats) {
+        finishMessageIndex(stats);
+      }
+
+      @Override
+      protected void onCancelled(MessageSearchIndexer.IndexStats stats) {
+        finishMessageIndex(stats);
+      }
+    };
+    messageIndexTask.execute();
+  }
+
+  private void finishMessageIndex(MessageSearchIndexer.IndexStats stats) {
+    messageIndexTask = null;
+    if (messageIndexProgress != null && messageIndexProgress.isShowing()) messageIndexProgress.dismiss();
+    messageIndexProgress = null;
+
+    if (isFinishing()) return;
+    invalidateOptionsMenu();
+    if (stats == null) {
+      Toast.makeText(this, getString(R.string.message_index_failed, 1), Toast.LENGTH_LONG).show();
+    } else if (stats.cancelled) {
+      Toast.makeText(this, getString(R.string.message_index_partial, stats.completedConversations), Toast.LENGTH_LONG).show();
+    } else if (stats.failures > 0) {
+      Toast.makeText(this, getString(R.string.message_index_failed, stats.failures), Toast.LENGTH_LONG).show();
+    } else {
+      Toast.makeText(this, getString(R.string.message_index_complete, stats.indexedMessages,
+                                     stats.completedConversations), Toast.LENGTH_LONG).show();
+    }
   }
 
   @Override

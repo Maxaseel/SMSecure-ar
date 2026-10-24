@@ -1,42 +1,15 @@
 apply plugin: 'com.android.library'
 
-buildscript {
-    repositories {
-        maven {
-            url "https://repo1.maven.org/maven2"
-        }
-        // Required for the Gradle plugin
-        google()
-        jcenter()
-    }
-    dependencies {
-        classpath 'com.android.tools.build:gradle:3.3.2'
-    }
-}
-
-repositories {
-    google()
-    jcenter()
-}
-
 android {
-    compileSdkVersion 21
-    buildToolsVersion "21.1.1"
+    namespace 'com.amulyakhare.textdrawable'
+    compileSdk 36
 
     defaultConfig {
-        minSdkVersion 10
-        targetSdkVersion 21
-        versionCode 2
-        versionName "1.1"
+        minSdk 10
     }
-    buildTypes {
-        release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt')
-        }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
 }
-
-version = '1.0.1'
-sourceCompatibility = 1.7
-targetCompatibility = 1.7

@@ -76,7 +76,7 @@ public class BadgeWidgetProvider extends AppWidgetProvider {
   private PendingIntent getPendingIntent(Context context) {
     Intent intent = new Intent(context, getActivityToLaunch());
     intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-    return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+    return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
   }
 
   public void updateBadge(int unreadCount) {

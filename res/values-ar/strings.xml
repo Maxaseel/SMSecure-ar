@@ -89,9 +89,22 @@
   <string name="ConversationActivity_search_results">عدد النتائج: %1$d</string>
   <string name="ConversationActivity_search_results_limited">عرض أحدث %1$d من أصل %2$d نتيجة</string>
   <string name="ConversationActivity_message_search_failed">تعذر البحث. حاول مرة أخرى.</string>
+  <string name="conversation__menu_pin_conversation">تثبيت المحادثة</string>
+  <string name="conversation__menu_unpin_conversation">إلغاء تثبيت المحادثة</string>
+  <string name="notification_channel_messages">الرسائل</string>
+  <string name="notification_channel_security">الأمان والخصوصية</string>
+  <string name="notification_channel_background">المهام في الخلفية</string>
+  <string name="foreground_service_special_use_description">إبقاء مفتاح التشفير متاحًا لإشعارات الرسائل الآمنة أثناء استخدام الحساب.</string>
   <string name="ConversationActivity_mms_not_supported_title">الرسائل المتعددة الوسائط غير مدعومة</string>
   <string name="ConversationActivity_specify_recipient">إختر مراسلاً من فضلك</string>
   <string name="ConversationActivity_attachment_exceeds_size_limits">لقد فاق حجم المرفق حد الحجم الأقصى.</string>
+  <string name="conversation_list__menu_build_message_index">إنشاء فهرس آمن للرسائل</string>
+  <string name="conversation_list__menu_update_message_index">تحديث فهرس الرسائل الآمن</string>
+  <string name="message_index_title">إعداد البحث الآمن</string>
+  <string name="message_index_progress">فُهرست %1$d من %2$d محادثة (%3$d رسالة)</string>
+  <string name="message_index_complete">أصبح البحث جاهزًا: %1$d رسالة في %2$d محادثة</string>
+  <string name="message_index_partial">توقف الفهرس. اكتمل تجهيز %1$d محادثة.</string>
+  <string name="message_index_failed">تعذرت فهرسة بعض المحادثات (%1$d).</string>
   <!--ConversationAdapter-->
   <!--ConversationFragment-->
   <string name="ConversationFragment_message_details">تفاصيل الرسالة</string>

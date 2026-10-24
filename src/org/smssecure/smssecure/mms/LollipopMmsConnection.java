@@ -58,7 +58,8 @@ public abstract class LollipopMmsConnection extends BroadcastReceiver {
   }
 
   protected void beginTransaction() {
-    getContext().getApplicationContext().registerReceiver(this, new IntentFilter(action));
+    org.smssecure.smssecure.util.ReceiverUtil.registerNotExported(
+        getContext().getApplicationContext(), this, new IntentFilter(action));
   }
 
   protected void endTransaction() {
@@ -77,7 +78,9 @@ public abstract class LollipopMmsConnection extends BroadcastReceiver {
   }
 
   protected PendingIntent getPendingIntent() {
-    return PendingIntent.getBroadcast(getContext(), 1, new Intent(action), PendingIntent.FLAG_ONE_SHOT);
+    Intent intent = new Intent(action);
+    intent.setClass(getContext(), getClass());
+    return PendingIntent.getBroadcast(getContext(), 1, intent, PendingIntent.FLAG_ONE_SHOT | PendingIntent.FLAG_MUTABLE);
   }
 
   protected Context getContext() {

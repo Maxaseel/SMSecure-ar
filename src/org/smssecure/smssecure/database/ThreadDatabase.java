@@ -66,6 +66,7 @@ public class ThreadDatabase extends Database {
   public  static final String ARCHIVED        = "archived";
   public  static final String STATUS          = "status";
   public  static final String LAST_SEEN       = "last_seen";
+  public  static final String PINNED          = "pinned";
 
   public static final String CREATE_TABLE = "CREATE TABLE " + TABLE_NAME + " ("                    +
     ID + " INTEGER PRIMARY KEY, " + DATE + " INTEGER DEFAULT 0, "                                  +
@@ -74,11 +75,12 @@ public class ThreadDatabase extends Database {
     TYPE + " INTEGER DEFAULT 0, " + ERROR + " INTEGER DEFAULT 0, "                                 +
     SNIPPET_TYPE + " INTEGER DEFAULT 0, " + SNIPPET_URI + " TEXT DEFAULT NULL, "                   +
     ARCHIVED + " INTEGER DEFAULT 0, " + STATUS + " INTEGER DEFAULT 0, "                            +
-    LAST_SEEN + " INTEGER DEFAULT 0);";
+    LAST_SEEN + " INTEGER DEFAULT 0, " + PINNED + " INTEGER NOT NULL DEFAULT 0);";
 
   public static final String[] CREATE_INDEXS = {
     "CREATE INDEX IF NOT EXISTS thread_recipient_ids_index ON " + TABLE_NAME + " (" + RECIPIENT_IDS + ");",
     "CREATE INDEX IF NOT EXISTS archived_index ON " + TABLE_NAME + " (" + ARCHIVED + ");",
+    "CREATE INDEX IF NOT EXISTS thread_pinned_date_index ON " + TABLE_NAME + " (" + PINNED + ", " + DATE + ");",
   };
 
   public ThreadDatabase(Context context, SQLiteOpenHelper databaseHelper) {
@@ -133,6 +135,7 @@ public class ThreadDatabase extends Database {
 
   private void updateThread(long threadId, long count, String body, @Nullable Uri attachment,
                             long date, int status, long type, boolean unarchive)  {
+    DatabaseFactory.getMessageSearchIndexDatabase(context).markDirty(threadId);
     ContentValues contentValues = new ContentValues(6);
     contentValues.put(DATE, date - date % 1000);
     contentValues.put(MESSAGE_COUNT, count);
@@ -151,6 +154,7 @@ public class ThreadDatabase extends Database {
   }
 
   public void updateSnippet(long threadId, String snippet, @Nullable Uri attachment, long date, long type, boolean unarchive) {
+    DatabaseFactory.getMessageSearchIndexDatabase(context).markDirty(threadId);
     ContentValues contentValues = new ContentValues(4);
 
     contentValues.put(DATE, date - date % 1000);
@@ -170,6 +174,7 @@ public class ThreadDatabase extends Database {
   private void deleteThread(long threadId) {
     SQLiteDatabase db = databaseHelper.getWritableDatabase();
     db.delete(TABLE_NAME, ID_WHERE, new String[] {threadId + ""});
+    DatabaseFactory.getMessageSearchIndexDatabase(context).deleteIndex(threadId);
     notifyConversationListListeners();
   }
 
@@ -184,12 +189,14 @@ public class ThreadDatabase extends Database {
     where = new StringBuilder(where.substring(0, where.length() - 4));
 
     db.delete(TABLE_NAME, where.toString(), null);
+    for (long threadId : threadIds) DatabaseFactory.getMessageSearchIndexDatabase(context).deleteIndex(threadId);
     notifyConversationListListeners();
   }
 
   private void deleteAllThreads() {
     SQLiteDatabase db = databaseHelper.getWritableDatabase();
     db.delete(TABLE_NAME, null, null);
+    DatabaseFactory.getMessageSearchIndexDatabase(context).deleteAllIndexes();
     notifyConversationListListeners();
   }
 
@@ -310,7 +317,8 @@ public class ThreadDatabase extends Database {
         selectionArgs[i++] = String.valueOf(id);
       }
 
-      cursors.add(db.query(TABLE_NAME, null, selection.toString(), selectionArgs, null, null, DATE + " DESC"));
+      cursors.add(db.query(TABLE_NAME, null, selection.toString(), selectionArgs, null, null,
+                           PINNED + " DESC, " + DATE + " DESC, " + ID + " DESC"));
     }
 
     Cursor cursor = cursors.size() > 1 ? new MergeCursor(cursors.toArray(new Cursor[cursors.size()])) : cursors.get(0);
@@ -320,7 +328,8 @@ public class ThreadDatabase extends Database {
 
   public Cursor getConversationList() {
     SQLiteDatabase db     = databaseHelper.getReadableDatabase();
-    Cursor         cursor =  db.query(TABLE_NAME, null, ARCHIVED + " = ?", new String[] {"0"}, null, null, DATE + " DESC");
+    Cursor         cursor =  db.query(TABLE_NAME, null, ARCHIVED + " = ?", new String[] {"0"}, null, null,
+                                     PINNED + " DESC, " + DATE + " DESC, " + ID + " DESC");
 
     setNotifyConverationListListeners(cursor);
 
@@ -329,10 +338,19 @@ public class ThreadDatabase extends Database {
 
   public Cursor getArchivedConversationList() {
     SQLiteDatabase db     = databaseHelper.getReadableDatabase();
-    Cursor         cursor = db.query(TABLE_NAME, null, ARCHIVED + " = ?", new String[] {"1"}, null, null, DATE + " DESC");
+    Cursor         cursor = db.query(TABLE_NAME, null, ARCHIVED + " = ?", new String[] {"1"}, null, null,
+                                    PINNED + " DESC, " + DATE + " DESC, " + ID + " DESC");
 
     setNotifyConverationListListeners(cursor);
 
+    return cursor;
+  }
+
+  public Cursor getAllConversationList() {
+    SQLiteDatabase db = databaseHelper.getReadableDatabase();
+    Cursor cursor = db.query(TABLE_NAME, null, null, null, null, null,
+                             PINNED + " DESC, " + DATE + " DESC, " + ID + " DESC");
+    setNotifyConverationListListeners(cursor);
     return cursor;
   }
 
@@ -385,6 +403,47 @@ public class ThreadDatabase extends Database {
 
     db.update(TABLE_NAME, contentValues, ID_WHERE, new String[] {String.valueOf(threadId)});
     notifyConversationListListeners();
+  }
+
+  public void setPinned(long threadId, boolean pinned) {
+    ContentValues values = new ContentValues(1);
+    values.put(PINNED, pinned ? 1 : 0);
+    databaseHelper.getWritableDatabase().update(TABLE_NAME, values, ID_WHERE,
+                                                new String[] {String.valueOf(threadId)});
+    notifyConversationListListeners();
+  }
+
+  public boolean isPinned(long threadId) {
+    Cursor cursor = null;
+    try {
+      cursor = databaseHelper.getReadableDatabase().query(TABLE_NAME, new String[] {PINNED}, ID_WHERE,
+          new String[] {String.valueOf(threadId)}, null, null, null);
+      return cursor != null && cursor.moveToFirst() && cursor.getInt(0) != 0;
+    } finally {
+      if (cursor != null) cursor.close();
+    }
+  }
+
+  public SearchMetadata getSearchMetadata(long threadId) {
+    Cursor cursor = null;
+    try {
+      cursor = databaseHelper.getReadableDatabase().query(TABLE_NAME,
+          new String[] {MESSAGE_COUNT, DATE}, ID_WHERE, new String[] {String.valueOf(threadId)}, null, null, null);
+      if (cursor != null && cursor.moveToFirst()) return new SearchMetadata(cursor.getInt(0), cursor.getLong(1));
+      return new SearchMetadata(-1, -1);
+    } finally {
+      if (cursor != null) cursor.close();
+    }
+  }
+
+  public static class SearchMetadata {
+    public final int messageCount;
+    public final long threadDate;
+
+    private SearchMetadata(int messageCount, long threadDate) {
+      this.messageCount = messageCount;
+      this.threadDate = threadDate;
+    }
   }
 
   public long getLastSeen(long threadId) {
@@ -578,12 +637,13 @@ public class ThreadDatabase extends Database {
       long type               = cursor.getLong(cursor.getColumnIndexOrThrow(ThreadDatabase.SNIPPET_TYPE));
       int distributionType    = cursor.getInt(cursor.getColumnIndexOrThrow(ThreadDatabase.TYPE));
       boolean archived        = cursor.getInt(cursor.getColumnIndex(ThreadDatabase.ARCHIVED)) != 0;
+      boolean pinned          = cursor.getInt(cursor.getColumnIndexOrThrow(ThreadDatabase.PINNED)) != 0;
       int status              = cursor.getInt(cursor.getColumnIndexOrThrow(ThreadDatabase.STATUS));
       long lastSeen           = cursor.getLong(cursor.getColumnIndexOrThrow(ThreadDatabase.LAST_SEEN));
       Uri snippetUri          = getSnippetUri(cursor);
 
       return new ThreadRecord(context, body, snippetUri, recipients, date, count, read == 1,
-                              threadId, status, type, distributionType, archived, lastSeen);
+                              threadId, status, type, distributionType, archived, pinned, lastSeen);
     }
 
     private DisplayRecord.Body getPlaintextBody(Cursor cursor) {

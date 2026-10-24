@@ -26,6 +26,7 @@ import android.os.Build.VERSION_CODES;
 import android.os.Handler;
 import android.support.annotation.DrawableRes;
 import android.support.annotation.NonNull;
+import android.support.v4.content.ContextCompat;
 import android.util.AttributeSet;
 import android.view.View;
 import android.widget.RelativeLayout;
@@ -126,6 +127,10 @@ public class ConversationListItem extends RelativeLayout
     this.fromView.setText(recipients, read);
 
     this.subjectView.setText(thread.getDisplayBody());
+    this.subjectView.setCompoundDrawablePadding(Math.round(4 * getResources().getDisplayMetrics().density));
+    this.subjectView.setCompoundDrawablesRelativeWithIntrinsicBounds(
+        thread.isPinned() ? ContextCompat.getDrawable(getContext(), R.drawable.ic_push_pin_24dp) : null,
+        null, null, null);
     this.subjectView.setTypeface(read ? LIGHT_TYPEFACE : BOLD_TYPEFACE);
 
     if (thread.getDate() > 0) {

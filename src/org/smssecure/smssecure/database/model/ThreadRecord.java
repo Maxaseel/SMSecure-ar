@@ -46,12 +46,13 @@ public class ThreadRecord extends DisplayRecord {
   private           final boolean read;
   private           final int     distributionType;
   private           final boolean archived;
+  private           final boolean pinned;
   private           final long    lastSeen;
 
   public ThreadRecord(@NonNull Context context, @NonNull Body body, @Nullable Uri snippetUri,
                       @NonNull Recipients recipients, long date, long count, boolean read,
                       long threadId, int status, long snippetType, int distributionType, boolean archived,
-                      long lastSeen)
+                      boolean pinned, long lastSeen)
   {
     super(context, body, recipients, date, date, date, threadId, status, snippetType);
     this.context          = context.getApplicationContext();
@@ -60,6 +61,7 @@ public class ThreadRecord extends DisplayRecord {
     this.read             = read;
     this.distributionType = distributionType;
     this.archived         = archived;
+    this.pinned           = pinned;
     this.lastSeen         = lastSeen;
   }
 
@@ -130,6 +132,10 @@ public class ThreadRecord extends DisplayRecord {
 
   public boolean isArchived() {
     return archived;
+  }
+
+  public boolean isPinned() {
+    return pinned;
   }
 
   public int getDistributionType() {

@@ -115,7 +115,7 @@ public class DatabaseMigrationActivity extends PassphraseRequiredActionBarActivi
     filter.addAction(ApplicationMigrationService.COMPLETED_ACTION);
     filter.setPriority(1000);
 
-    registerReceiver(completedReceiver, filter);
+    org.smssecure.smssecure.util.ReceiverUtil.registerNotExported(this, completedReceiver, filter);
   }
 
   private void unregisterForCompletedNotification() {

@@ -37,6 +37,7 @@ import org.smssecure.smssecure.ConversationListActivity;
 import org.smssecure.smssecure.DatabaseUpgradeActivity;
 import org.smssecure.smssecure.DummyActivity;
 import org.smssecure.smssecure.R;
+import org.smssecure.smssecure.notifications.NotificationChannels;
 import org.smssecure.smssecure.crypto.InvalidPassphraseException;
 import org.smssecure.smssecure.crypto.MasterSecret;
 import org.smssecure.smssecure.crypto.MasterSecretUtil;
@@ -142,7 +143,7 @@ public class KeyCachingService extends Service {
     Log.w("KeyCachingService", "onCreate()");
     super.onCreate();
     this.pending = PendingIntent.getService(this, 0, new Intent(PASSPHRASE_EXPIRED_EVENT, null,
-                                                                this, KeyCachingService.class), 0);
+                                                                this, KeyCachingService.class), PendingIntent.FLAG_IMMUTABLE);
 
     if (SilencePreferences.isPasswordDisabled(this)) {
       try {
@@ -231,10 +232,10 @@ public class KeyCachingService extends Service {
     }
   }
 
-  @TargetApi(Build.VERSION_CODES.JELLY_BEAN)
+@TargetApi(Build.VERSION_CODES.JELLY_BEAN)
   private void foregroundServiceModern() {
     Log.w("KeyCachingService", "foregrounding KCS");
-    NotificationCompat.Builder builder = new NotificationCompat.Builder(this);
+    NotificationCompat.Builder builder = new NotificationCompat.Builder(this, NotificationChannels.SECURITY);
 
     builder.setContentTitle(getString(R.string.KeyCachingService_passphrase_cached));
     builder.setContentText(getString(R.string.KeyCachingService_silence_passphrase_cached));
@@ -250,7 +251,7 @@ public class KeyCachingService extends Service {
   }
 
   private void foregroundServiceICS() {
-    NotificationCompat.Builder builder = new NotificationCompat.Builder(this);
+    NotificationCompat.Builder builder = new NotificationCompat.Builder(this, NotificationChannels.SECURITY);
     RemoteViews remoteViews            = new RemoteViews(getPackageName(), R.layout.key_caching_notification);
 
     remoteViews.setOnClickPendingIntent(R.id.lock_cache_icon, buildLockIntent());
@@ -264,7 +265,7 @@ public class KeyCachingService extends Service {
   }
 
   private void foregroundServiceLegacy() {
-    NotificationCompat.Builder builder = new NotificationCompat.Builder(this);
+    NotificationCompat.Builder builder = new NotificationCompat.Builder(this, NotificationChannels.SECURITY);
     builder.setSmallIcon(R.drawable.icon_cached);
     builder.setWhen(System.currentTimeMillis());
 
@@ -303,13 +304,13 @@ public class KeyCachingService extends Service {
   private PendingIntent buildLockIntent() {
     Intent intent = new Intent(this, KeyCachingService.class);
     intent.setAction(PASSPHRASE_EXPIRED_EVENT);
-    return PendingIntent.getService(getApplicationContext(), 0, intent, 0);
+    return PendingIntent.getService(getApplicationContext(), 0, intent, PendingIntent.FLAG_IMMUTABLE);
   }
 
   private PendingIntent buildLaunchIntent() {
     Intent intent              = new Intent(this, ConversationListActivity.class);
     intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-    PendingIntent launchIntent = PendingIntent.getActivity(getApplicationContext(), 0, intent, 0);
+    PendingIntent launchIntent = PendingIntent.getActivity(getApplicationContext(), 0, intent, PendingIntent.FLAG_IMMUTABLE);
     return launchIntent;
   }
 

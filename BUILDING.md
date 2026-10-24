@@ -1,6 +1,11 @@
 Building Silence
 ================
 
+Android compatibility
+---------------------
+
+The application supports Android 7.0 (API 24) and newer (`minSdk 24`). The build targets Android 16 (API 36).
+
 Basics
 ------
 
@@ -16,23 +21,16 @@ The following steps should help you (re)build Silence from the command line.
 
         git clone --recursive https://github.com/SilenceIM/Silence.git
 
-2. Make sure you have the [Android SDK](https://developer.android.com/sdk/index.html) installed somewhere on your system.
-3. Ensure that the following packages are installed from the Android SDK manager:
-    * Android SDK Build Tools
-    * SDK Platform
-    * Android Support Repository
-    * Google Repository
-4. Create a local.properties file at the root of your source checkout and add an sdk.dir entry to it.
+2. Install JDK 17 and Gradle 8.11.1.
+3. Make sure you have the [Android SDK](https://developer.android.com/sdk/index.html) installed somewhere on your system.
+4. Install Android SDK Platform 36 and Build Tools 36.0.0 from the SDK manager, along with Google and Android support repositories.
+5. Create a local.properties file at the root of your source checkout and add an sdk.dir entry to it.
 
         sdk.dir=\<path to your sdk installation\>
 
-5. (Optional) Build [Gradle-Witness](https://github.com/WhisperSystems/gradle-witness)
-
-        ./scripts/build-witness.sh
-
 6. Execute Gradle:
 
-        ./gradlew assembleDebug
+        gradle --no-daemon assembleDebug
 
 If you get a `Configuration with name 'default' not found.`, please update submodules:
 

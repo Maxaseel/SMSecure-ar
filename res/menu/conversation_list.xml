@@ -8,4 +8,8 @@
           app:actionViewClass="android.support.v7.widget.SearchView"
           app:showAsAction="ifRoom|collapseActionView" />
 
+    <item android:title="@string/conversation_list__menu_build_message_index"
+          android:id="@+id/menu_build_message_index"
+          android:showAsAction="never" />
+
 </menu>

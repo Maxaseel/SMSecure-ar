@@ -103,7 +103,7 @@ public class MmsRadio {
       if (connectivityListener == null) {
         IntentFilter filter  = new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION);
         connectivityListener = new ConnectivityListener();
-        context.registerReceiver(connectivityListener, filter);
+        org.smssecure.smssecure.util.ReceiverUtil.registerNotExported(context, connectivityListener, filter);
       }
 
       Util.wait(this, 30000);
