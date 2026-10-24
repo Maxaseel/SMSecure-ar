@@ -1,0 +1,23 @@
+include ':com.amulyakhare.textdrawable'
+project(':com.amulyakhare.textdrawable').projectDir = new File(rootDir, 'libs/com.amulyakhare.textdrawable')
+
+include ':com.android.support.support-v4-preferencefragment'
+project(':com.android.support.support-v4-preferencefragment').projectDir = new File(rootDir, 'libs/com.android.support.support-v4-preferencefragment')
+
+include ':org.w3c.dom'
+project(':org.w3c.dom').projectDir = new File(rootDir, 'libs/org.w3c.dom')
+
+include ':org.whispersystems.jobmanager'
+project(':org.whispersystems.jobmanager').projectDir = new File(rootDir, 'libs/org.whispersystems.jobmanager')
+
+include ':org.whispersystems.libpastelog'
+project(':org.whispersystems.libpastelog').projectDir = new File(rootDir, 'libs/org.whispersystems.libpastelog/library')
+
+include ':java', ':tests'
+project(':tests').projectDir = new File(rootDir, 'libs/org.whispersystems.libsignal/tests')
+project(':java').projectDir = new File(rootDir, 'libs/org.whispersystems.libsignal/java')
+include ':org.whispersystems.libsignal'
+project(':org.whispersystems.libsignal').projectDir = new File(rootDir, 'libs/org.whispersystems.libsignal/android')
+
+include ':org.greenrobot.eventbus'
+project(':org.greenrobot.eventbus').projectDir = new File(rootDir, 'libs/org.greenrobot.eventbus/EventBus')
