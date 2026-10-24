@@ -72,6 +72,7 @@ import org.smssecure.smssecure.crypto.MasterSecret;
 import org.smssecure.smssecure.database.DatabaseFactory;
 import org.smssecure.smssecure.database.MessageSearchIndexDatabase;
 import org.smssecure.smssecure.database.MmsSmsDatabase;
+import org.smssecure.smssecure.database.ThreadDatabase;
 import org.smssecure.smssecure.database.loaders.ConversationLoader;
 import org.smssecure.smssecure.database.model.MediaMmsMessageRecord;
 import org.smssecure.smssecure.database.model.MessageRecord;
