@@ -127,8 +127,9 @@ android {
         versionCode 210
         versionName "0.16.11-unstable"
 
-        minSdkVersion 14
-        targetSdkVersion 23
+        // Android 7.0 (Nougat) is the minimum supported platform.
+        minSdkVersion 24
+        targetSdkVersion 24
 
         vectorDrawables.useSupportLibrary = true
     }

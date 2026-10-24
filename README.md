@@ -14,6 +14,10 @@ Features:
 * Safe. All messages are encrypted locally, so if your phone is lost or stolen, your messages are protected.
 * Open Source. Silence is Free and Open Source, enabling anyone to verify its security by auditing the code.
 
+## Android compatibility
+
+This build requires Android 7.0 (Nougat, API 24) or newer. The app is compiled against Android API 27.
+
 
 ## Project goals
 
