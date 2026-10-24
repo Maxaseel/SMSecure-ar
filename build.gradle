@@ -106,6 +106,10 @@ android {
     compileSdk 36
     useLibrary 'org.apache.http.legacy'
 
+    buildFeatures {
+        buildConfig true
+    }
+
     defaultConfig {
         applicationId 'org.smssecure.smssecure'
         versionCode 210

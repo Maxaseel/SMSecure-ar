@@ -3,7 +3,6 @@ package org.smssecure.smssecure.jobs;
 import android.content.Context;
 import android.support.annotation.NonNull;
 
-import org.smssecure.smssecure.BuildConfig;
 import org.smssecure.smssecure.attachments.Attachment;
 import org.smssecure.smssecure.crypto.MasterSecret;
 import org.smssecure.smssecure.database.AttachmentDatabase;

@@ -42,7 +42,6 @@ import android.widget.EditText;
 import com.google.android.mms.pdu_alt.CharacterSets;
 import com.google.android.mms.pdu_alt.EncodedStringValue;
 
-import org.smssecure.smssecure.BuildConfig;
 import org.smssecure.smssecure.mms.OutgoingLegacyMmsConnection;
 import org.smssecure.smssecure.permissions.Permissions;
 import org.smssecure.smssecure.util.InvalidNumberException;
