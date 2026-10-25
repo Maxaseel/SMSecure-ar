@@ -80,8 +80,9 @@ public class DatabaseFactory {
    * Yes, INTRODUCED_XMPP_TRANSPORT > DATABASE_VERSION to allow database
    * downgrade when XMPP transport will be included in unstable branch.
    */
-  private static final int INTRODUCED_XMPP_TRANSPORT                       = 32;
-  private static final int DATABASE_VERSION                                = 31;
+  private static final int INTRODUCED_SYSTEM_MESSAGE_SYNC                  = 32;
+  private static final int INTRODUCED_XMPP_TRANSPORT                       = 33;
+  private static final int DATABASE_VERSION                                = 32;
 
   private static final String DATABASE_NAME    = "messages.db";
   private static final Object lock             = new Object();
@@ -100,6 +101,7 @@ public class DatabaseFactory {
   private final CanonicalAddressDatabase address;
   private final MmsAddressDatabase mmsAddress;
   private final MmsSmsDatabase mmsSmsDatabase;
+  private final SystemMessageSyncDatabase systemMessageSyncDatabase;
   private final IdentityDatabase identityDatabase;
   private final DraftDatabase draftDatabase;
   private final RecipientPreferenceDatabase recipientPreferenceDatabase;
@@ -116,6 +118,10 @@ public class DatabaseFactory {
 
   public static MmsSmsDatabase getMmsSmsDatabase(Context context) {
     return getInstance(context).mmsSmsDatabase;
+  }
+
+  public static SystemMessageSyncDatabase getSystemMessageSyncDatabase(Context context) {
+    return getInstance(context).systemMessageSyncDatabase;
   }
 
   public static ThreadDatabase getThreadDatabase(Context context) {
@@ -182,6 +188,7 @@ public class DatabaseFactory {
     this.address                     = CanonicalAddressDatabase.getInstance(context);
     this.mmsAddress                  = new MmsAddressDatabase(context, databaseHelper);
     this.mmsSmsDatabase              = new MmsSmsDatabase(context, databaseHelper);
+    this.systemMessageSyncDatabase   = new SystemMessageSyncDatabase(context, databaseHelper);
     this.identityDatabase            = new IdentityDatabase(context, databaseHelper);
     this.draftDatabase               = new DraftDatabase(context, databaseHelper);
     this.recipientPreferenceDatabase = new RecipientPreferenceDatabase(context, databaseHelper);
@@ -236,6 +243,7 @@ public class DatabaseFactory {
       db.execSQL(AttachmentDatabase.CREATE_TABLE);
       db.execSQL(ThreadDatabase.CREATE_TABLE);
       db.execSQL(MessageSearchIndexDatabase.CREATE_TABLE);
+      db.execSQL(SystemMessageSyncDatabase.CREATE_TABLE);
       db.execSQL(MmsAddressDatabase.CREATE_TABLE);
       db.execSQL(IdentityDatabase.CREATE_TABLE);
       db.execSQL(DraftDatabase.CREATE_TABLE);
@@ -579,6 +587,9 @@ public class DatabaseFactory {
         db.execSQL("ALTER TABLE thread ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0");
         db.execSQL(MessageSearchIndexDatabase.CREATE_TABLE);
         db.execSQL("CREATE INDEX IF NOT EXISTS thread_pinned_date_index ON thread (pinned, date)");
+      }
+      if (oldVersion < INTRODUCED_SYSTEM_MESSAGE_SYNC) {
+        db.execSQL(SystemMessageSyncDatabase.CREATE_TABLE);
       }
 
       db.setTransactionSuccessful();

@@ -7,9 +7,6 @@
           android:icon="?attr/menu_search_icon"
           app:showAsAction="always" />
 
-    <item android:title="@string/conversation__menu_pin_conversation"
-          android:id="@+id/menu_pin_conversation" />
-
     <item android:title="@string/conversation__menu_add_attachment"
           android:id="@+id/menu_add_attachment" />
 

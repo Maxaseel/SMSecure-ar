@@ -551,6 +551,83 @@ public class MmsDatabase extends MessagingDatabase {
                               (retrieved.isPushMessage() ? Types.PUSH_MESSAGE_BIT : 0));
   }
 
+  public Pair<Long, Long> insertImportedSystemMessage(@NonNull MasterSecret masterSecret,
+                                                       @NonNull MmsAddresses addresses,
+                                                       @Nullable String body,
+                                                       @Nullable String subject,
+                                                       @NonNull List<Attachment> attachments,
+                                                       long dateSent, long dateReceived,
+                                                       boolean incoming, boolean read,
+                                                       int subscriptionId, int systemMessageBox)
+      throws MmsException
+  {
+    long threadId;
+    if (incoming) {
+      IncomingMediaMessage message = new IncomingMediaMessage(addresses.getFrom(), addresses.getTo(),
+          addresses.getCc(), body, dateSent, attachments, subscriptionId);
+      try {
+        threadId = getThreadIdFor(message);
+      } catch (RecipientFormattingException e) {
+        throw new MmsException(e);
+      }
+    } else {
+      List<String> destinationNumbers = new LinkedList<>();
+      destinationNumbers.addAll(addresses.getTo());
+      destinationNumbers.addAll(addresses.getCc());
+      destinationNumbers.addAll(addresses.getBcc());
+
+      String localNumber = ServiceUtil.getTelephonyManager(context).getLine1Number();
+      if (localNumber != null) {
+        for (int i = destinationNumbers.size() - 1; i >= 0; i--) {
+          String destination = destinationNumbers.get(i);
+          PhoneNumberUtil.MatchType match = PhoneNumberUtil.getInstance().isNumberMatch(localNumber, destination);
+          if (match != PhoneNumberUtil.MatchType.NO_MATCH && match != PhoneNumberUtil.MatchType.NOT_A_NUMBER) {
+            destinationNumbers.remove(i);
+          }
+        }
+      }
+
+      if (destinationNumbers.isEmpty()) {
+        throw new MmsException("System MMS has no destination address");
+      }
+
+      try {
+        Recipients recipients = RecipientFactory.getRecipientsFromStrings(context, destinationNumbers, false);
+        threadId = DatabaseFactory.getThreadDatabase(context).getThreadIdFor(recipients);
+      } catch (RecipientFormattingException e) {
+        throw new MmsException(e);
+      }
+    }
+
+    long mailbox;
+    if (incoming) {
+      mailbox = Types.BASE_INBOX_TYPE | Types.ENCRYPTION_SYMMETRIC_BIT;
+    } else if (systemMessageBox == 3) {
+      mailbox = Types.BASE_DRAFT_TYPE | Types.ENCRYPTION_SYMMETRIC_BIT;
+    } else if (systemMessageBox == 4 || systemMessageBox == 6) {
+      mailbox = Types.BASE_OUTBOX_TYPE | Types.ENCRYPTION_SYMMETRIC_BIT;
+    } else if (systemMessageBox == 5) {
+      mailbox = Types.BASE_SENT_FAILED_TYPE | Types.ENCRYPTION_SYMMETRIC_BIT;
+    } else {
+      mailbox = Types.BASE_SENT_TYPE | Types.ENCRYPTION_SYMMETRIC_BIT;
+    }
+
+    ContentValues values = new ContentValues();
+    values.put(DATE_SENT, dateSent);
+    values.put(DATE_RECEIVED, dateReceived);
+    values.put(MESSAGE_BOX, mailbox);
+    values.put(MESSAGE_TYPE, incoming ? PduHeaders.MESSAGE_TYPE_RETRIEVE_CONF : PduHeaders.MESSAGE_TYPE_SEND_REQ);
+    values.put(THREAD_ID, threadId);
+    values.put(ADDRESS, incoming ? addresses.getFrom() : null);
+    values.put("sub", subject);
+    values.put(STATUS, -1);
+    values.put(READ, read ? 1 : 0);
+    values.put(SUBSCRIPTION_ID, subscriptionId);
+
+    long messageId = insertMediaMessage(masterSecret, addresses, body, attachments, values);
+    return new Pair<>(messageId, threadId);
+  }
+
   public Pair<Long, Long> insertSecureMessageInbox(MasterSecret masterSecret,
                                                    IncomingMediaMessage retrieved,
                                                    String contentLocation, long threadId)

@@ -303,6 +303,47 @@ public class ConversationListFragment extends Fragment
     getListAdapter().selectAllThreads();
     actionMode.setSubtitle(getString(R.string.conversation_fragment_cab__batch_selection_amount,
                                      getListAdapter().getBatchSelections().size()));
+    updatePinActionTitle(actionMode.getMenu());
+  }
+
+  private void handlePinAllSelected() {
+    final Set<Long> selectedConversations = new HashSet<>(getListAdapter().getBatchSelections());
+    if (selectedConversations.isEmpty()) return;
+
+    ThreadDatabase threadDatabase = DatabaseFactory.getThreadDatabase(getActivity());
+    boolean allPinned = true;
+    for (long threadId : selectedConversations) {
+      if (!threadDatabase.isPinned(threadId)) {
+        allPinned = false;
+        break;
+      }
+    }
+
+    boolean pin = !allPinned;
+    for (long threadId : selectedConversations) {
+      threadDatabase.setPinned(threadId, pin);
+    }
+
+    if (actionMode != null) updatePinActionTitle(actionMode.getMenu());
+    getListAdapter().notifyDataSetChanged();
+  }
+
+  private void updatePinActionTitle(Menu menu) {
+    MenuItem pinItem = menu.findItem(R.id.menu_pin_selected);
+    if (pinItem == null) return;
+
+    Set<Long> selectedConversations = getListAdapter().getBatchSelections();
+    boolean allPinned = !selectedConversations.isEmpty();
+    ThreadDatabase threadDatabase = DatabaseFactory.getThreadDatabase(getActivity());
+    for (long threadId : selectedConversations) {
+      if (!threadDatabase.isPinned(threadId)) {
+        allPinned = false;
+        break;
+      }
+    }
+
+    pinItem.setTitle(allPinned ? R.string.conversation_list_batch__menu_unpin_selected
+                               : R.string.conversation_list_batch__menu_pin_selected);
   }
 
   private void handleCreateConversation(long threadId, Recipients recipients, int distributionType, long lastSeen) {
@@ -448,6 +489,7 @@ public class ConversationListFragment extends Fragment
       } else {
         actionMode.setSubtitle(getString(R.string.conversation_fragment_cab__batch_selection_amount,
                                          adapter.getBatchSelections().size()));
+        updatePinActionTitle(actionMode.getMenu());
       }
 
       adapter.notifyDataSetChanged();
@@ -462,6 +504,7 @@ public class ConversationListFragment extends Fragment
     getListAdapter().toggleThreadInBatchSet(item.getThreadId());
     getListAdapter().populateRecipients(item.getThreadId(), item.getRecipients());
     getListAdapter().notifyDataSetChanged();
+    if (actionMode != null) updatePinActionTitle(actionMode.getMenu());
   }
 
   @Override
@@ -498,7 +541,8 @@ public class ConversationListFragment extends Fragment
 
   @Override
   public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
-    return false;
+    updatePinActionTitle(menu);
+    return true;
   }
 
   @Override
@@ -507,6 +551,7 @@ public class ConversationListFragment extends Fragment
     case R.id.menu_select_all:       handleSelectAllThreads();   return true;
     case R.id.menu_delete_selected:  handleDeleteAllSelected();  return true;
     case R.id.menu_archive_selected: handleArchiveAllSelected(); return true;
+    case R.id.menu_pin_selected:     handlePinAllSelected();     return true;
     case R.id.menu_send_drafts:      handleSendDrafts();         return true;
     }
 

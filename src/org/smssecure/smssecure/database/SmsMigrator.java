@@ -29,6 +29,7 @@ import org.smssecure.smssecure.crypto.MasterSecret;
 import org.smssecure.smssecure.recipients.RecipientFactory;
 import org.smssecure.smssecure.recipients.RecipientFormattingException;
 import org.smssecure.smssecure.recipients.Recipients;
+import org.whispersystems.libsignal.InvalidMessageException;
 
 import java.util.ArrayList;
 import java.util.StringTokenizer;
@@ -164,7 +165,55 @@ public class SmsMigrator {
     return masterCipher.encryptBody(body);
   }
 
-  private static void migrateConversation(Context context, MasterSecret masterSecret,
+  private static long findExistingSms(SQLiteDatabase database, Cursor systemCursor,
+                                      long threadId, MasterSecret masterSecret)
+  {
+    String address = systemCursor.getString(systemCursor.getColumnIndexOrThrow(SmsDatabase.ADDRESS));
+    String date    = Long.toString(systemCursor.getLong(systemCursor.getColumnIndexOrThrow(SmsDatabase.DATE_RECEIVED)));
+    String body    = systemCursor.getString(systemCursor.getColumnIndexOrThrow(SmsDatabase.BODY));
+    String selection = SmsDatabase.THREAD_ID + " = ? AND " + SmsDatabase.DATE_RECEIVED + " = ? AND ";
+    String[] selectionArgs;
+
+    if (address == null) {
+      selection += SmsDatabase.ADDRESS + " IS NULL";
+      selectionArgs = new String[]{Long.toString(threadId), date};
+    } else {
+      selection += SmsDatabase.ADDRESS + " = ?";
+      selectionArgs = new String[]{Long.toString(threadId), date, address};
+    }
+
+    Cursor existing = null;
+    try {
+      existing = database.query(SmsDatabase.TABLE_NAME,
+          new String[]{SmsDatabase.ID, SmsDatabase.BODY}, selection, selectionArgs,
+          null, null, null);
+
+      while (existing != null && existing.moveToNext()) {
+        String storedBody = existing.getString(existing.getColumnIndexOrThrow(SmsDatabase.BODY));
+        if (sameBody(masterSecret, storedBody, body)) {
+          return existing.getLong(existing.getColumnIndexOrThrow(SmsDatabase.ID));
+        }
+      }
+    } finally {
+      if (existing != null) existing.close();
+    }
+
+    return -1;
+  }
+
+  private static boolean sameBody(MasterSecret masterSecret, String storedBody, String systemBody) {
+    if (storedBody == null || systemBody == null) return storedBody == null && systemBody == null;
+    if (storedBody.equals(systemBody)) return true;
+    if (masterSecret == null) return false;
+
+    try {
+      return new MasterCipher(masterSecret).decryptBody(storedBody).equals(systemBody);
+    } catch (InvalidMessageException e) {
+      return false;
+    }
+  }
+
+  private static int migrateConversation(Context context, MasterSecret masterSecret,
                                           SmsMigrationProgressListener listener,
                                           ProgressDescription progress,
                                           long theirThreadId, Recipients ourRecipients,
@@ -196,10 +245,10 @@ public class SmsMigrator {
       } catch (SQLiteException e) {
         /// Work around for weird sony-specific (?) bug: #4309
         Log.w(TAG, e);
-        return;
+        return 0;
       }
 
-      if (cursor == null || cursor.getCount() == 0) return;
+      if (cursor == null || cursor.getCount() == 0) return 0;
 
       int dateColumn = cursor.getColumnIndexOrThrow(SmsDatabase.DATE_RECEIVED);
       boolean hasMessageInDateRange = false;
@@ -213,32 +262,53 @@ public class SmsMigrator {
         }
       }
 
-      if (!hasMessageInDateRange) return;
+      if (!hasMessageInDateRange) return 0;
       cursor.moveToPosition(-1);
 
       long ourThreadId = DatabaseFactory.getThreadDatabase(context).getThreadIdFor(ourRecipients);
       SmsDatabase ourSmsDatabase = DatabaseFactory.getSmsDatabase(context);
+      SystemMessageSyncDatabase syncDatabase = DatabaseFactory.getSystemMessageSyncDatabase(context);
+      int imported = 0;
 
       SQLiteDatabase transaction = ourSmsDatabase.beginTransaction();
       SQLiteStatement statement  = ourSmsDatabase.createInsertStatement(transaction);
+      int systemIdColumn = cursor.getColumnIndexOrThrow(SmsDatabase.ID);
 
-      while (cursor != null && cursor.moveToNext()) {
-        int typeColumn = cursor.getColumnIndex(SmsDatabase.TYPE);
-        long messageDate = cursor.getLong(dateColumn);
-        boolean inDateRange = (startDate == Long.MIN_VALUE || messageDate >= startDate) &&
-                              (endDate == Long.MAX_VALUE || messageDate <= endDate);
+      try {
+        while (cursor != null && cursor.moveToNext()) {
+          int typeColumn = cursor.getColumnIndex(SmsDatabase.TYPE);
+          long messageDate = cursor.getLong(dateColumn);
+          long systemId = cursor.getLong(systemIdColumn);
+          boolean inDateRange = (startDate == Long.MIN_VALUE || messageDate >= startDate) &&
+                                (endDate == Long.MAX_VALUE || messageDate <= endDate);
 
-        if (inDateRange && (cursor.isNull(typeColumn) || isAppropriateTypeForMigration(cursor, typeColumn))) {
-          getContentValuesForRow(context, masterSecret, cursor, ourThreadId, statement);
-          statement.execute();
+          if (inDateRange && (cursor.isNull(typeColumn) || isAppropriateTypeForMigration(cursor, typeColumn))) {
+            if (!syncDatabase.hasImported(transaction, SystemMessageSyncDatabase.SMS, systemId)) {
+              long existingId = findExistingSms(transaction, cursor, ourThreadId, masterSecret);
+              if (existingId >= 0) {
+                syncDatabase.markImported(transaction, SystemMessageSyncDatabase.SMS, systemId, existingId);
+              } else {
+                getContentValuesForRow(context, masterSecret, cursor, ourThreadId, statement);
+                long insertedId = statement.executeInsert();
+                if (insertedId >= 0) {
+                  syncDatabase.markImported(transaction, SystemMessageSyncDatabase.SMS, systemId, insertedId);
+                  imported++;
+                }
+              }
+            }
+          }
+
+          listener.progressUpdate(new ProgressDescription(progress, cursor.getCount(), cursor.getPosition()));
         }
-
-        listener.progressUpdate(new ProgressDescription(progress, cursor.getCount(), cursor.getPosition()));
+        transaction.setTransactionSuccessful();
+      } finally {
+        statement.close();
+        transaction.endTransaction();
       }
 
-      ourSmsDatabase.endTransaction(transaction);
       DatabaseFactory.getThreadDatabase(context).update(ourThreadId, true);
       DatabaseFactory.getThreadDatabase(context).notifyConversationListeners(ourThreadId);
+      return imported;
 
     } finally {
       if (cursor != null)
@@ -246,20 +316,22 @@ public class SmsMigrator {
     }
   }
 
-  public static void migrateDatabase(Context context,
+  public static int migrateDatabase(Context context,
                                      MasterSecret masterSecret,
                                      SmsMigrationProgressListener listener)
   {
-    migrateDatabase(context, masterSecret, listener, Long.MIN_VALUE, Long.MAX_VALUE);
+    return migrateDatabase(context, masterSecret, listener, Long.MIN_VALUE, Long.MAX_VALUE);
   }
 
-  public static void migrateDatabase(Context context,
+  public static int migrateDatabase(Context context,
                                      MasterSecret masterSecret,
                                      SmsMigrationProgressListener listener,
                                      long startDate,
                                      long endDate)
   {
     if (startDate > endDate) throw new IllegalArgumentException("Import start date must not be after end date");
+
+    int imported = 0;
 
 //    if (context.getSharedPreferences("SecureSMS", Context.MODE_PRIVATE).getBoolean("migrated", false))
 //      return;
@@ -277,9 +349,9 @@ public class SmsMigrator {
         ProgressDescription progress = new ProgressDescription(cursor.getCount(), cursor.getPosition(), 100, 0);
 
         if (ourRecipients != null) {
-          migrateConversation(context, masterSecret,
-                              listener, progress,
-                              theirThreadId, ourRecipients, startDate, endDate);
+          imported += migrateConversation(context, masterSecret,
+                                          listener, progress,
+                                          theirThreadId, ourRecipients, startDate, endDate);
         }
 
         progress.incrementPrimaryComplete();
@@ -292,6 +364,7 @@ public class SmsMigrator {
 
     context.getSharedPreferences("SecureSMS", Context.MODE_PRIVATE).edit()
       .putBoolean("migrated", true).apply();
+    return imported;
   }
 
   public interface SmsMigrationProgressListener {

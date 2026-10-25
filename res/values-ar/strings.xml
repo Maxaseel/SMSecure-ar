@@ -89,8 +89,6 @@
   <string name="ConversationActivity_search_results">عدد النتائج: %1$d</string>
   <string name="ConversationActivity_search_results_limited">عرض أحدث %1$d من أصل %2$d نتيجة</string>
   <string name="ConversationActivity_message_search_failed">تعذر البحث. حاول مرة أخرى.</string>
-  <string name="conversation__menu_pin_conversation">تثبيت المحادثة</string>
-  <string name="conversation__menu_unpin_conversation">إلغاء تثبيت المحادثة</string>
   <string name="notification_channel_messages">الرسائل</string>
   <string name="notification_channel_security">الأمان والخصوصية</string>
   <string name="notification_channel_background">المهام في الخلفية</string>
@@ -384,6 +382,14 @@
   <string name="export_fragment__export_plaintext_backup">تصدير نسخة احتياطية غير مشفرة</string>
   <string name="export_fragment__export_a_plaintext_backup_compatible_with">تصدير نسخة غير مشفرة إلى بطاقة الذاكرة الخارجية بصيغة متوافقة مع SMSBackup And Restore</string>
   <string name="import_fragment__import_system_sms_database">استيراد قاعدة بيانات الرسائل بالنظام</string>
+  <string name="import_export_fragment__sync_system_messages">مزامنة رسائل SMS وMMS مع النظام</string>
+  <string name="import_export_fragment__sync_system_messages_summary">إضافة الرسائل الجديدة من قاعدة النظام دون حذف رسائل التطبيق</string>
+  <string name="ImportExportFragment_sync_system_messages_title">مزامنة رسائل النظام</string>
+  <string name="ImportExportFragment_sync_system_messages_message">ستُضاف رسائل SMS ورسائل MMS المكتملة فقط. ستبقى رسائل التطبيق الحالية، وسيتم تخطي ما تمت مزامنته سابقًا. لا يمكن نسخ رسائل MMS التي لا تزال بانتظار التنزيل.</string>
+  <string name="ImportExportFragment_sync_system_messages_action">مزامنة</string>
+  <string name="ImportExportFragment_sync_system_messages_progress">جارٍ مزامنة رسائل النظام…</string>
+  <string name="ImportExportFragment_sync_system_messages_complete">اكتملت المزامنة: أُضيفت %1$d رسالة SMS و%2$d رسالة MMS.</string>
+  <string name="ImportExportFragment_sync_system_messages_error">تعذرت مزامنة رسائل النظام. تحقق من إذن الرسائل ثم حاول مجددًا.</string>
   <string name="import_fragment__import_the_database_from_the_default_system">استيراد قاعدة البيانات من تطبيق الرسائل الافتراضي لنظام التشغيل</string>
   <string name="import_fragment__restore_encrypted_backup">استيراد نسخة احتياطية مشفرة</string>
   <string name="import_fragment__restore_a_previously_exported_encrypted_backup">استيراد نسخة احتياطية مشفرة</string>
@@ -604,6 +610,8 @@
   <string name="conversation_insecure__security">الأمن</string>
   <!--conversation_list_batch-->
   <string name="conversation_list_batch__menu_delete_selected">احذف المختار</string>
+  <string name="conversation_list_batch__menu_pin_selected">تثبيت المحدد</string>
+  <string name="conversation_list_batch__menu_unpin_selected">إلغاء تثبيت المحدد</string>
   <string name="conversation_list_batch__menu_select_all">اختر الكل</string>
   <string name="conversation_list_batch_archive__menu_archive_selected">إحتفظ المختارة</string>
   <!--conversation_list-->

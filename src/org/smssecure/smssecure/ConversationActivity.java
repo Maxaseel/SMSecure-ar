@@ -385,18 +385,6 @@ public class ConversationActivity extends PassphraseRequiredActionBarActivity
     }
 
     inflater.inflate(R.menu.conversation, menu);
-
-    MenuItem pinItem = menu.findItem(R.id.menu_pin_conversation);
-    if (pinItem != null) {
-      long currentThreadId = getThreadId();
-      pinItem.setVisible(currentThreadId > 0);
-      if (currentThreadId > 0) {
-        pinItem.setTitle(DatabaseFactory.getThreadDatabase(this).isPinned(currentThreadId)
-                         ? R.string.conversation__menu_unpin_conversation
-                         : R.string.conversation__menu_pin_conversation);
-      }
-    }
-
     if (recipients != null && recipients.isMuted()) inflater.inflate(R.menu.conversation_muted, menu);
     else                                            inflater.inflate(R.menu.conversation_unmuted, menu);
 
@@ -416,14 +404,6 @@ public class ConversationActivity extends PassphraseRequiredActionBarActivity
     super.onOptionsItemSelected(item);
     switch (item.getItemId()) {
     case R.id.menu_search_messages:                if (fragment != null) fragment.showMessageSearch(); return true;
-    case R.id.menu_pin_conversation:
-      long currentThreadId = getThreadId();
-      if (currentThreadId > 0) {
-        ThreadDatabase threadDatabase = DatabaseFactory.getThreadDatabase(this);
-        threadDatabase.setPinned(currentThreadId, !threadDatabase.isPinned(currentThreadId));
-        invalidateOptionsMenu();
-      }
-      return true;
     case R.id.menu_call:                          handleDial(getRecipients().getPrimaryRecipient()); return true;
     case R.id.menu_delete_conversation:           handleDeleteConversation();                        return true;
     case R.id.menu_archive_conversation:          handleArchiveConversation();                       return true;

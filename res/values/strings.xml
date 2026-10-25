@@ -127,8 +127,6 @@
     <string name="ConversationActivity_search_results">Matches: %1$d</string>
     <string name="ConversationActivity_search_results_limited">Showing latest %1$d of %2$d matches</string>
     <string name="ConversationActivity_message_search_failed">Search failed. Please try again.</string>
-    <string name="conversation__menu_pin_conversation">Pin conversation</string>
-    <string name="conversation__menu_unpin_conversation">Unpin conversation</string>
     <string name="notification_channel_messages">Messages</string>
     <string name="notification_channel_security">Security and privacy</string>
     <string name="notification_channel_background">Background tasks</string>
@@ -585,6 +583,14 @@
     <string name="export_fragment__export_a_plaintext_backup_compatible_with">Export a plaintext backup compatible with \'SMS Backup &amp; Restore\' to storage</string>
     <string name="import_fragment__import_system_sms_database">Import system SMS database</string>
     <string name="import_fragment__import_the_database_from_the_default_system">Import the database from the default system messenger app</string>
+    <string name="import_export_fragment__sync_system_messages">Sync system SMS and MMS</string>
+    <string name="import_export_fragment__sync_system_messages_summary">Add new SMS and MMS from the system database without deleting app messages</string>
+    <string name="ImportExportFragment_sync_system_messages_title">Synchronize system messages</string>
+    <string name="ImportExportFragment_sync_system_messages_message">New SMS and completed MMS will be added. Existing app messages are kept and already synchronized items are skipped. MMS that is still waiting to download cannot be copied.</string>
+    <string name="ImportExportFragment_sync_system_messages_action">Sync</string>
+    <string name="ImportExportFragment_sync_system_messages_progress">Synchronizing system messages…</string>
+    <string name="ImportExportFragment_sync_system_messages_complete">Synchronization complete: %1$d SMS and %2$d MMS added.</string>
+    <string name="ImportExportFragment_sync_system_messages_error">System messages could not be synchronized. Check SMS permission and try again.</string>
     <string name="import_fragment__restore_encrypted_backup">Restore encrypted backup</string>
     <string name="import_fragment__restore_a_previously_exported_encrypted_backup">Restore a previously exported encrypted backup</string>
     <string name="import_fragment__import_plaintext_backup">Import plaintext backup</string>
@@ -846,6 +852,8 @@
 
     <!-- conversation_list_batch -->
     <string name="conversation_list_batch__menu_delete_selected">Delete selected</string>
+    <string name="conversation_list_batch__menu_pin_selected">Pin selected</string>
+    <string name="conversation_list_batch__menu_unpin_selected">Unpin selected</string>
     <string name="conversation_list_batch__menu_select_all">Select all</string>
     <string name="conversation_list_batch__menu_send_drafts">Send selected drafts</string>
     <string name="conversation_list_batch_archive__menu_archive_selected">Archive selected</string>

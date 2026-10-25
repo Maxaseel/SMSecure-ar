@@ -21,6 +21,8 @@ import org.smssecure.smssecure.database.EncryptedBackupExporter;
 import org.smssecure.smssecure.database.NoExternalStorageException;
 import org.smssecure.smssecure.database.PlaintextBackupExporter;
 import org.smssecure.smssecure.database.PlaintextBackupImporter;
+import org.smssecure.smssecure.database.SmsMigrator;
+import org.smssecure.smssecure.database.SystemMmsMigrator;
 import org.smssecure.smssecure.permissions.Permissions;
 
 import java.io.IOException;
@@ -48,12 +50,14 @@ public class ImportExportFragment extends Fragment {
   public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle bundle) {
     View layout              = inflater.inflate(R.layout.import_export_fragment, container, false);
     View importSmsView       = layout.findViewById(R.id.import_sms             );
+    View syncSystemMessagesView = layout.findViewById(R.id.sync_system_messages);
     View importEncryptedView = layout.findViewById(R.id.import_encrypted_backup);
     View importPlaintextView = layout.findViewById(R.id.import_plaintext_backup);
     View exportEncryptedView = layout.findViewById(R.id.export_encrypted_backup);
     View exportPlaintextView = layout.findViewById(R.id.export_plaintext_backup);
 
     importSmsView.setOnClickListener(v -> handleImportSms());
+    syncSystemMessagesView.setOnClickListener(v -> handleSyncSystemMessages());
     importEncryptedView.setOnClickListener(v -> handleImportEncryptedBackup());
     importPlaintextView.setOnClickListener(v -> handleImportPlaintextBackup());
     exportEncryptedView.setOnClickListener(v -> handleExportEncryptedBackup());
@@ -102,6 +106,79 @@ public class ImportExportFragment extends Fragment {
     });
     builder.setNegativeButton(getActivity().getString(R.string.ImportFragment_cancel), null);
     builder.show();
+  }
+
+  private void handleSyncSystemMessages() {
+    AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+    builder.setIconAttribute(R.attr.dialog_info_icon);
+    builder.setTitle(R.string.ImportExportFragment_sync_system_messages_title);
+    builder.setMessage(R.string.ImportExportFragment_sync_system_messages_message);
+    builder.setPositiveButton(R.string.ImportExportFragment_sync_system_messages_action, (dialog, which) -> {
+      Permissions.with(this)
+                 .request(Manifest.permission.READ_SMS)
+                 .ifNecessary()
+                 .withPermanentDenialDialog(getString(R.string.ImportExportFragment_silence_needs_the_sms_permission_in_order_to_import_sms_messages))
+                 .onAllGranted(() -> new SystemMessageSyncTask(getActivity()).executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR))
+                 .onAnyDenied(() -> Toast.makeText(getContext(), R.string.ImportExportFragment_silence_needs_the_sms_permission_in_order_to_import_sms_messages_toast, Toast.LENGTH_LONG).show())
+                 .execute();
+    });
+    builder.setNegativeButton(getActivity().getString(R.string.ImportFragment_cancel), null);
+    builder.show();
+  }
+
+  private class SystemMessageSyncTask extends AsyncTask<Void, Void, SystemMessageSyncResult> {
+    private final Context context;
+
+    private SystemMessageSyncTask(Context context) {
+      this.context = context.getApplicationContext();
+    }
+
+    @Override
+    protected void onPreExecute() {
+      if (getActivity() != null) {
+        progressDialog = ProgressDialog.show(getActivity(),
+            getString(R.string.ImportFragment_importing),
+            getString(R.string.ImportExportFragment_sync_system_messages_progress), true, false);
+      }
+    }
+
+    @Override
+    protected SystemMessageSyncResult doInBackground(Void... params) {
+      SystemMessageSyncResult result = new SystemMessageSyncResult();
+      try {
+        result.sms = SmsMigrator.migrateDatabase(context, masterSecret, description -> {});
+        result.mms = SystemMmsMigrator.synchronize(context, masterSecret, null);
+      } catch (Exception e) {
+        Log.w(TAG, "System message synchronization failed", e);
+        result.error = e;
+      }
+      return result;
+    }
+
+    @Override
+    protected void onPostExecute(SystemMessageSyncResult result) {
+      if (progressDialog != null) {
+        progressDialog.dismiss();
+        progressDialog = null;
+      }
+
+      Context activity = getActivity();
+      if (activity == null) return;
+
+      if (result.error != null) {
+        Toast.makeText(activity, R.string.ImportExportFragment_sync_system_messages_error, Toast.LENGTH_LONG).show();
+      } else {
+        Toast.makeText(activity,
+            getString(R.string.ImportExportFragment_sync_system_messages_complete, result.sms, result.mms),
+            Toast.LENGTH_LONG).show();
+      }
+    }
+  }
+
+  private static class SystemMessageSyncResult {
+    private int sms;
+    private int mms;
+    private Exception error;
   }
 
   @SuppressWarnings("CodeBlock2Expr")
