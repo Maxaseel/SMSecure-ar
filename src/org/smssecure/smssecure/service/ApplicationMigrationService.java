@@ -35,6 +35,8 @@ public class ApplicationMigrationService extends Service
   private static final String TAG               = ApplicationMigrationService.class.getSimpleName();
   public  static final String MIGRATE_DATABASE  = "org.smssecure.smssecure.ApplicationMigration.MIGRATE_DATABSE";
   public  static final String COMPLETED_ACTION  = "org.smssecure.smssecure.ApplicationMigrationService.COMPLETED";
+  public  static final String EXTRA_START_DATE  = "org.smssecure.smssecure.ApplicationMigration.START_DATE";
+  public  static final String EXTRA_END_DATE    = "org.smssecure.smssecure.ApplicationMigration.END_DATE";
   private static final String PREFERENCES_NAME  = "SecureSMS";
   private static final String DATABASE_MIGRATED = "migrated";
 
@@ -145,9 +147,13 @@ public class ApplicationMigrationService extends Service
 
   private class ImportRunnable implements Runnable {
     private final MasterSecret masterSecret;
+    private final long startDate;
+    private final long endDate;
 
     public ImportRunnable(Intent intent) {
       this.masterSecret = intent.getParcelableExtra("master_secret");
+      this.startDate = intent.getLongExtra(EXTRA_START_DATE, Long.MIN_VALUE);
+      this.endDate = intent.getLongExtra(EXTRA_END_DATE, Long.MAX_VALUE);
       Log.w(TAG, "Service got mastersecret: " + masterSecret);
     }
 
@@ -164,7 +170,9 @@ public class ApplicationMigrationService extends Service
 
         SmsMigrator.migrateDatabase(ApplicationMigrationService.this,
                                     masterSecret,
-                                    ApplicationMigrationService.this);
+                                    ApplicationMigrationService.this,
+                                    startDate,
+                                    endDate);
 
         setState(new ImportState(ImportState.STATE_MIGRATING_COMPLETE, null));
 

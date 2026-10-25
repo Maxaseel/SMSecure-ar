@@ -285,10 +285,7 @@
 
     <!-- ImportFragment -->
     <string name="ImportFragment_import_system_sms_database">Import system SMS database?</string>
-    <string name="ImportFragment_this_will_import_messages_from_the_system">This will import
-        messages from the system\'s default SMS database to Silence. If you\'ve imported
-        the system\'s SMS database before, importing again will result in duplicated messages.
-    </string>
+    <string name="ImportFragment_this_will_import_messages_from_the_system">This imports SMS messages from the system database. On the next screen, choose all messages, the last 30 days, or a custom date range. Importing the same range again may create duplicate messages.</string>
     <string name="ImportFragment_import">Import</string>
     <string name="ImportFragment_cancel">Cancel</string>
     <string name="ImportFragment_restore_encrypted_backup">Restore encrypted backup?</string>
@@ -448,6 +445,12 @@
     <string name="ApplicationMigrationService_importing_text_messages">Importing text messages</string>
     <string name="ApplicationMigrationService_import_complete">Import complete</string>
     <string name="ApplicationMigrationService_system_database_import_is_complete">System database import is complete.</string>
+    <string name="system_sms_import_choose_range">Choose which SMS messages to import</string>
+    <string name="system_sms_import_all">Import all messages</string>
+    <string name="system_sms_import_last_30_days">Import the last 30 days</string>
+    <string name="system_sms_import_date_range">Choose a date range</string>
+    <string name="system_sms_import_start_date">Select the start date</string>
+    <string name="system_sms_import_end_date">Select the end date</string>
 
     <!-- KeyCachingService -->
     <string name="KeyCachingService_silence_passphrase_cached">Tap to open.</string>

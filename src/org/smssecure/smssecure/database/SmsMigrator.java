@@ -30,6 +30,7 @@ import org.smssecure.smssecure.recipients.RecipientFactory;
 import org.smssecure.smssecure.recipients.RecipientFormattingException;
 import org.smssecure.smssecure.recipients.Recipients;
 
+import java.util.ArrayList;
 import java.util.StringTokenizer;
 
 public class SmsMigrator {
@@ -102,7 +103,7 @@ public class SmsMigrator {
     addStringToStatement(statement, cursor, 1, SmsDatabase.ADDRESS);
     addIntToStatement(statement, cursor, 2, SmsDatabase.PERSON);
     addIntToStatement(statement, cursor, 3, SmsDatabase.DATE_RECEIVED);
-    addIntToStatement(statement, cursor, 4, SmsDatabase.DATE_RECEIVED);
+    addIntToStatement(statement, cursor, 4, SmsDatabase.DATE_SENT);
     addIntToStatement(statement, cursor, 5, SmsDatabase.PROTOCOL);
     addIntToStatement(statement, cursor, 6, SmsDatabase.READ);
     addIntToStatement(statement, cursor, 7, SmsDatabase.STATUS);
@@ -166,29 +167,68 @@ public class SmsMigrator {
   private static void migrateConversation(Context context, MasterSecret masterSecret,
                                           SmsMigrationProgressListener listener,
                                           ProgressDescription progress,
-                                          long theirThreadId, long ourThreadId)
+                                          long theirThreadId, Recipients ourRecipients,
+                                          long startDate, long endDate)
   {
-    SmsDatabase ourSmsDatabase = DatabaseFactory.getSmsDatabase(context);
-    Cursor cursor              = null;
+    Cursor cursor = null;
 
     try {
       Uri uri = Uri.parse("content://sms/conversations/" + theirThreadId);
+      StringBuilder selection = new StringBuilder();
+      ArrayList<String> selectionArgs = new ArrayList<>();
+
+      if (startDate != Long.MIN_VALUE) {
+        selection.append(SmsDatabase.DATE_RECEIVED).append(" >= ?");
+        selectionArgs.add(Long.toString(startDate));
+      }
+
+      if (endDate != Long.MAX_VALUE) {
+        if (selection.length() > 0) selection.append(" AND ");
+        selection.append(SmsDatabase.DATE_RECEIVED).append(" <= ?");
+        selectionArgs.add(Long.toString(endDate));
+      }
 
       try {
-        cursor = context.getContentResolver().query(uri, null, null, null, null);
+        cursor = context.getContentResolver().query(uri, null,
+                                                   selection.length() == 0 ? null : selection.toString(),
+                                                   selectionArgs.isEmpty() ? null : selectionArgs.toArray(new String[selectionArgs.size()]),
+                                                   null);
       } catch (SQLiteException e) {
         /// Work around for weird sony-specific (?) bug: #4309
         Log.w(TAG, e);
         return;
       }
 
+      if (cursor == null || cursor.getCount() == 0) return;
+
+      int dateColumn = cursor.getColumnIndexOrThrow(SmsDatabase.DATE_RECEIVED);
+      boolean hasMessageInDateRange = false;
+      while (cursor.moveToNext()) {
+        long messageDate = cursor.getLong(dateColumn);
+        if ((startDate == Long.MIN_VALUE || messageDate >= startDate) &&
+            (endDate == Long.MAX_VALUE || messageDate <= endDate))
+        {
+          hasMessageInDateRange = true;
+          break;
+        }
+      }
+
+      if (!hasMessageInDateRange) return;
+      cursor.moveToPosition(-1);
+
+      long ourThreadId = DatabaseFactory.getThreadDatabase(context).getThreadIdFor(ourRecipients);
+      SmsDatabase ourSmsDatabase = DatabaseFactory.getSmsDatabase(context);
+
       SQLiteDatabase transaction = ourSmsDatabase.beginTransaction();
       SQLiteStatement statement  = ourSmsDatabase.createInsertStatement(transaction);
 
       while (cursor != null && cursor.moveToNext()) {
         int typeColumn = cursor.getColumnIndex(SmsDatabase.TYPE);
+        long messageDate = cursor.getLong(dateColumn);
+        boolean inDateRange = (startDate == Long.MIN_VALUE || messageDate >= startDate) &&
+                              (endDate == Long.MAX_VALUE || messageDate <= endDate);
 
-        if (cursor.isNull(typeColumn) || isAppropriateTypeForMigration(cursor, typeColumn)) {
+        if (inDateRange && (cursor.isNull(typeColumn) || isAppropriateTypeForMigration(cursor, typeColumn))) {
           getContentValuesForRow(context, masterSecret, cursor, ourThreadId, statement);
           statement.execute();
         }
@@ -210,11 +250,21 @@ public class SmsMigrator {
                                      MasterSecret masterSecret,
                                      SmsMigrationProgressListener listener)
   {
+    migrateDatabase(context, masterSecret, listener, Long.MIN_VALUE, Long.MAX_VALUE);
+  }
+
+  public static void migrateDatabase(Context context,
+                                     MasterSecret masterSecret,
+                                     SmsMigrationProgressListener listener,
+                                     long startDate,
+                                     long endDate)
+  {
+    if (startDate > endDate) throw new IllegalArgumentException("Import start date must not be after end date");
+
 //    if (context.getSharedPreferences("SecureSMS", Context.MODE_PRIVATE).getBoolean("migrated", false))
 //      return;
 
-    ThreadDatabase threadDatabase = DatabaseFactory.getThreadDatabase(context);
-    Cursor cursor                 = null;
+    Cursor cursor = null;
 
     try {
       Uri threadListUri = Uri.parse("content://mms-sms/conversations?simple=true");
@@ -227,10 +277,9 @@ public class SmsMigrator {
         ProgressDescription progress = new ProgressDescription(cursor.getCount(), cursor.getPosition(), 100, 0);
 
         if (ourRecipients != null) {
-          long ourThreadId = threadDatabase.getThreadIdFor(ourRecipients);
           migrateConversation(context, masterSecret,
                               listener, progress,
-                              theirThreadId, ourThreadId);
+                              theirThreadId, ourRecipients, startDate, endDate);
         }
 
         progress.incrementPrimaryComplete();

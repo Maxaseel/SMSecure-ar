@@ -6,12 +6,14 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.app.DatePickerDialog;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.os.Parcelable;
 import android.support.annotation.NonNull;
+import android.support.v7.app.AlertDialog;
 import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
@@ -22,6 +24,8 @@ import org.smssecure.smssecure.crypto.MasterSecret;
 import org.smssecure.smssecure.database.SmsMigrator.ProgressDescription;
 import org.smssecure.smssecure.service.ApplicationMigrationService;
 import org.smssecure.smssecure.service.ApplicationMigrationService.ImportState;
+
+import java.util.Calendar;
 
 public class DatabaseMigrationActivity extends PassphraseRequiredActionBarActivity {
 
@@ -37,10 +41,12 @@ public class DatabaseMigrationActivity extends PassphraseRequiredActionBarActivi
   private TextView     progressLabel;
 
   private ApplicationMigrationService importService;
+  private MasterSecret masterSecret;
   private boolean isVisible = false;
 
   @Override
   protected void onCreate(Bundle bundle, @NonNull MasterSecret masterSecret) {
+    this.masterSecret = masterSecret;
     setContentView(R.layout.database_migration_activity);
 
     initializeResources();
@@ -91,13 +97,7 @@ public class DatabaseMigrationActivity extends PassphraseRequiredActionBarActivi
     this.importButton.setOnClickListener(new View.OnClickListener() {
       @Override
       public void onClick(View v) {
-        Intent intent = new Intent(DatabaseMigrationActivity.this, ApplicationMigrationService.class);
-        intent.setAction(ApplicationMigrationService.MIGRATE_DATABASE);
-        intent.putExtra("master_secret", (Parcelable)getIntent().getParcelableExtra("master_secret"));
-        startService(intent);
-
-        promptLayout.setVisibility(View.GONE);
-        progressLayout.setVisibility(View.VISIBLE);
+        showImportOptions();
       }
     });
 
@@ -108,6 +108,74 @@ public class DatabaseMigrationActivity extends PassphraseRequiredActionBarActivi
         handleImportComplete();
       }
     });
+  }
+
+  private void showImportOptions() {
+    CharSequence[] options = new CharSequence[] {
+        getString(R.string.system_sms_import_all),
+        getString(R.string.system_sms_import_last_30_days),
+        getString(R.string.system_sms_import_date_range)
+    };
+
+    new AlertDialog.Builder(this)
+        .setTitle(R.string.system_sms_import_choose_range)
+        .setItems(options, (dialog, which) -> {
+          if (which == 0) {
+            startImport(Long.MIN_VALUE, Long.MAX_VALUE);
+          } else if (which == 1) {
+            long endDate = System.currentTimeMillis();
+            long startDate = endDate - 30L * 24L * 60L * 60L * 1000L;
+            startImport(startDate, endDate);
+          } else if (which == 2) {
+            chooseStartDate();
+          }
+        })
+        .setNegativeButton(R.string.ImportFragment_cancel, null)
+        .show();
+  }
+
+  private void chooseStartDate() {
+    Calendar today = Calendar.getInstance();
+    DatePickerDialog dialog = new DatePickerDialog(this,
+        (picker, year, month, day) -> {
+          Calendar startDate = Calendar.getInstance();
+          startDate.set(year, month, day, 0, 0, 0);
+          startDate.set(Calendar.MILLISECOND, 0);
+          chooseEndDate(startDate);
+        },
+        today.get(Calendar.YEAR), today.get(Calendar.MONTH), today.get(Calendar.DAY_OF_MONTH));
+
+    dialog.setTitle(getString(R.string.system_sms_import_start_date));
+    dialog.getDatePicker().setMaxDate(System.currentTimeMillis());
+    dialog.show();
+  }
+
+  private void chooseEndDate(final Calendar startDate) {
+    DatePickerDialog dialog = new DatePickerDialog(this,
+        (picker, year, month, day) -> {
+          Calendar endDate = Calendar.getInstance();
+          endDate.set(year, month, day, 23, 59, 59);
+          endDate.set(Calendar.MILLISECOND, 999);
+          startImport(startDate.getTimeInMillis(), endDate.getTimeInMillis());
+        },
+        startDate.get(Calendar.YEAR), startDate.get(Calendar.MONTH), startDate.get(Calendar.DAY_OF_MONTH));
+
+    dialog.setTitle(getString(R.string.system_sms_import_end_date));
+    dialog.getDatePicker().setMinDate(startDate.getTimeInMillis());
+    dialog.getDatePicker().setMaxDate(System.currentTimeMillis());
+    dialog.show();
+  }
+
+  private void startImport(long startDate, long endDate) {
+    Intent intent = new Intent(this, ApplicationMigrationService.class);
+    intent.setAction(ApplicationMigrationService.MIGRATE_DATABASE);
+    intent.putExtra("master_secret", (Parcelable)masterSecret);
+    intent.putExtra(ApplicationMigrationService.EXTRA_START_DATE, startDate);
+    intent.putExtra(ApplicationMigrationService.EXTRA_END_DATE, endDate);
+    startService(intent);
+
+    promptLayout.setVisibility(View.GONE);
+    progressLayout.setVisibility(View.VISIBLE);
   }
 
   private void registerForCompletedNotification() {

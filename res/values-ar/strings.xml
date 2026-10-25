@@ -170,6 +170,7 @@
   <string name="ImportExportActivity_export">تصدير</string>
   <!--ImportFragment-->
   <string name="ImportFragment_import_system_sms_database">استيراد قاعدة بيانات الرسائل من النظام؟</string>
+  <string name="ImportFragment_this_will_import_messages_from_the_system">سيستورد هذا رسائل SMS من قاعدة النظام. في الشاشة التالية اختر جميع الرسائل أو آخر 30 يومًا أو فترة زمنية مخصصة. قد يؤدي استيراد الفترة نفسها مرة أخرى إلى تكرار الرسائل.</string>
   <string name="ImportFragment_import">استيراد</string>
   <string name="ImportFragment_cancel">إلغاء</string>
   <string name="ImportFragment_restore_encrypted_backup">هل تريد استعادة نسخة احيتاطية مشفرة ؟</string>
@@ -279,6 +280,12 @@
   <string name="ApplicationMigrationService_importing_text_messages">استيراد رسائل نصية</string>
   <string name="ApplicationMigrationService_import_complete">تمت الاستعادة !</string>
   <string name="ApplicationMigrationService_system_database_import_is_complete">اكتملت عملية استيراد قاعدة بيانات النظام.</string>
+  <string name="system_sms_import_choose_range">اختر الرسائل المراد استيرادها</string>
+  <string name="system_sms_import_all">استيراد كل الرسائل</string>
+  <string name="system_sms_import_last_30_days">استيراد رسائل آخر 30 يومًا</string>
+  <string name="system_sms_import_date_range">تحديد فترة زمنية</string>
+  <string name="system_sms_import_start_date">اختر تاريخ البداية</string>
+  <string name="system_sms_import_end_date">اختر تاريخ النهاية</string>
   <!--KeyCachingService-->
   <string name="KeyCachingService_silence_passphrase_cached">أنقر للفتح</string>
   <string name="KeyCachingService_silence_passphrase_cached_with_lock">أنقر للفتح أو أنقر رمز القفل للإغلاق</string>

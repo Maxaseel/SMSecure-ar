@@ -22,7 +22,6 @@ import org.smssecure.smssecure.database.NoExternalStorageException;
 import org.smssecure.smssecure.database.PlaintextBackupExporter;
 import org.smssecure.smssecure.database.PlaintextBackupImporter;
 import org.smssecure.smssecure.permissions.Permissions;
-import org.smssecure.smssecure.service.ApplicationMigrationService;
 
 import java.io.IOException;
 
@@ -90,14 +89,11 @@ public class ImportExportFragment extends Fragment {
                  .ifNecessary()
                  .withPermanentDenialDialog(getString(R.string.ImportExportFragment_silence_needs_the_sms_permission_in_order_to_import_sms_messages))
                  .onAllGranted(() -> {
-                   Intent intent = new Intent(getActivity(), ApplicationMigrationService.class);
-                   intent.setAction(ApplicationMigrationService.MIGRATE_DATABASE);
-                   intent.putExtra("master_secret", masterSecret);
-                   getActivity().startService(intent);
-
                    Intent nextIntent = new Intent(getActivity(), ConversationListActivity.class);
+                   nextIntent.putExtra("master_secret", masterSecret);
 
                    Intent activityIntent = new Intent(getActivity(), DatabaseMigrationActivity.class);
+                   activityIntent.putExtra("master_secret", masterSecret);
                    activityIntent.putExtra("next_intent", nextIntent);
                    getActivity().startActivity(activityIntent);
                  })

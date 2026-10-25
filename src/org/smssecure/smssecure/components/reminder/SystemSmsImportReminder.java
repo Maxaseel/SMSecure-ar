@@ -21,13 +21,8 @@ public class SystemSmsImportReminder extends Reminder {
     final OnClickListener okListener = new OnClickListener() {
       @Override
       public void onClick(View v) {
-        Intent intent = new Intent(context, ApplicationMigrationService.class);
-        intent.setAction(ApplicationMigrationService.MIGRATE_DATABASE);
-        intent.putExtra("master_secret", masterSecret);
-        context.startService(intent);
-
         Intent nextIntent = new Intent(context, ConversationListActivity.class);
-        intent.putExtra("master_secret", masterSecret);
+        nextIntent.putExtra("master_secret", masterSecret);
 
         Intent activityIntent = new Intent(context, DatabaseMigrationActivity.class);
         activityIntent.putExtra("master_secret", masterSecret);
