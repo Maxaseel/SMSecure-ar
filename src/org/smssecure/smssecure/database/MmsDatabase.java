@@ -591,12 +591,8 @@ public class MmsDatabase extends MessagingDatabase {
         throw new MmsException("System MMS has no destination address");
       }
 
-      try {
-        Recipients recipients = RecipientFactory.getRecipientsFromStrings(context, destinationNumbers, false);
-        threadId = DatabaseFactory.getThreadDatabase(context).getThreadIdFor(recipients);
-      } catch (RecipientFormattingException e) {
-        throw new MmsException(e);
-      }
+      Recipients recipients = RecipientFactory.getRecipientsFromStrings(context, destinationNumbers, false);
+      threadId = DatabaseFactory.getThreadDatabase(context).getThreadIdFor(recipients);
     }
 
     long mailbox;
